@@ -22,6 +22,7 @@ MODULE_VERSION("0.0.1");
 
 static struct class* cl;
 static dev_t newtopic_dev;
+static struct cdev newtopic_cdev;
 
 /*##################################################################################################
 #   Functions to pass to struct file_operations newtopic_fo to register the special file newtopic  #
@@ -109,6 +110,13 @@ int init_module(void){
   else
   	printk(KERN_INFO "Succesfully created class %s\n", FILE_CLASS);
   	
+  //Initialize the cdev structure
+  cdev_init(&newtopic_cdev, &newtopic_fo);
+  
+  //Add the special file to the system
+  if (cdev_add(&newtopic_cdev, newtopic_dev,1) < 0)
+  	pr_err("Could not add special file %s to system\n", NEWTOPIC_NAME);
+  	
   //Create the special file newtopic
   if ( device_create(cl, NULL, newtopic_dev, NULL, NEWTOPIC_NAME) == NULL){
   	printk(KERN_ALERT "Could not create the special file %s\n", NEWTOPIC_NAME);
@@ -116,7 +124,7 @@ int init_module(void){
   else
   	printk(KERN_INFO "Succesfully created special file %s\n", NEWTOPIC_NAME);
 
- // Major = register_chrdev(DEFAULT_MAJOR, NEWTOPIC, &newtopic_fo);
+ // Major = register_chrdev(DEFAULT_MAJOR, NEWTOPIC_NAME, &newtopic_fo);
 
   printk(KERN_INFO "Special file newtopic was assigned Major %d", Major);
   return 0;
