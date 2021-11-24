@@ -16,6 +16,10 @@ MODULE_AUTHOR("Davide Li Calsi");
 MODULE_DESCRIPTION("Publish/Subscribe IPC mechanism");
 MODULE_VERSION("0.0.1");
 
+
+//Github access token:
+//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
+
 /*##################################################
 #   Global variables to create character dev file  #
 ###################################################*/
@@ -135,6 +139,7 @@ void cleanup_module(void){
   pr_info("Starting cleanup\n");
   device_destroy(cl, newtopic_dev);
   class_destroy(cl);
+  cdev_del(&newtopic_cdev);
   printk(KERN_INFO "Module succesfully removed\n");
 
 }
