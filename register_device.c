@@ -54,17 +54,18 @@ static int newtopic_device_open(struct inode * inode, struct file * filp){
     return -EBUSY;
 
   ++open;
-  printk(KERN_INFO "Special file opened\n");
+  printk(KERN_INFO "Special file %s opened\n", NEWTOPIC_NAME);
   return 0;//OPEN_SUCCESS;
 }
 
 static int newtopic_device_release(struct inode * inode, struct file * filp){
-  printk(KERN_INFO "Special file deleted\n");
+  printk(KERN_INFO "Special file %s released\n", NEWTOPIC_NAME);
+  --open;
   return 0;//CLOSE_SUCCESS;
 }
 
 static ssize_t newtopic_device_read(struct file * filp, char* buffer, size_t size, loff_t * offset){
-  printk(KERN_INFO "Read from special file\n");
+  printk(KERN_INFO "Read from special file %s \n", NEWTOPIC_NAME);
   return size;
 }
 
@@ -75,7 +76,7 @@ static ssize_t newtopic_device_write(struct file * filp, const char* buffer, siz
 
   not_copied = copy_from_user(topic, buffer, size);
 
-  printk(KERN_INFO "Writing to special file\n");
+  printk(KERN_INFO "Writing to special file %s\n", NEWTOPIC_NAME);
 
   if (not_copied == 0){
 
