@@ -49,9 +49,9 @@ static int subscribe_open(struct inode * inode, struct file * filp){
 
 	//Get the file name of this special file
 	char this_file[50];
-	strcpy(this_file, filp->f_path.dentry->d_name.name);
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
-	pr_info("Opening subscription file %s\n", this_file);
+	pr_info("Opening subscription file for topic %s\n", this_file);
 	
 	return 0;
 }
@@ -61,9 +61,9 @@ static int subscribe_release(struct inode * inode, struct file * filp){
 
 	//Get the file name of this special file
 	char this_file[50];
-	strcpy(this_file, filp->f_path.dentry->d_name.name);
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
-	pr_info("Releasing subscription file %s\n", this_file);
+	pr_info("Releasing subscription file for topic %s\n", this_file);
 	
 	return 0;
 }
@@ -72,9 +72,9 @@ static ssize_t subscribe_read(struct file * filp, char* buffer, size_t size, lof
 
 	//Get the file name of this special file
 	char this_file[50];
-	strcpy(this_file, filp->f_path.dentry->d_name.name);
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
-	pr_info("Reading subscription file %s\n", this_file);
+	pr_info("Reading subscription file for topic %s\n", this_file);
 	
 	return 0;
 }
@@ -83,9 +83,9 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 
 	//Get the file name of this special file
 	char this_file[50];
-	strcpy(this_file, filp->f_path.dentry->d_name.name);
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
-	pr_info("Writing subscription file %s\n", this_file);
+	pr_info("Writing subscription file for topic %s\n", this_file);
 	
 	return 0;
 }
@@ -94,6 +94,11 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 /*##################################################
 #   Utility functions for better code readability  #
 ###################################################*/
+
+/*Adds a new topic with name topic_name.
+This function takes care of creating the folder /dev/'topic_name' and populates it
+with the files subscribe, subscribers_list, signal_nr and endpoint
+*/
 int add_new_topic(char* topic_name);
 
 int add_new_topic(char* topic_name){
@@ -269,17 +274,24 @@ int init_module(void){
 void cleanup_module(void){
   
   pr_info("Starting cleanup\n");
+  
+  //Destroying all character device files
   device_destroy(cl, newtopic_dev);
   int i,j;
   
   for(i=0; i< topics_count; ++i){
   	device_destroy(cl, subscribe_data[i]->subscribe_dev);
   }
+  
+  //Destroy the class AOS_PS_IPC
   class_destroy(cl);
+  
+  //Destroy all cdev data structures
   cdev_del(&newtopic_cdev);
   for(j=0; j< topics_count; ++j){
   	cdev_del(&subscribe_data[j]->subscribe_cdev);
   }
+  
   printk(KERN_INFO "Module succesfully removed\n");
 
 }
