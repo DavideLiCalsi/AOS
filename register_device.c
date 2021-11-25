@@ -108,18 +108,19 @@ int add_new_topic(char* topic_name){
 		
 	/*Buffer containing the path of the "subscribe" special file for the
 	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribe"*/
-	char topic_subscribe_path[60];
-	strcat(topic_subscribe_path, "/dev/topics/");
+	char topic_subscribe_path[60]="";
+	strcat(topic_subscribe_path, "/topics/");
 	strcat(topic_subscribe_path, topic_name);
 	strcat(topic_subscribe_path, "/subscribe");
 	
 	/*Initialize the file operations struct*/
-	new_topic_subscribe->subscribe_fo = {
+	struct file_operations fo = {
 		.read=subscribe_read,
 		.open=subscribe_open,
 		.write=subscribe_write,
 		.release=subscribe_release
 	};
+	new_topic_subscribe->subscribe_fo = fo; 
 	
 	/*Allocating Major number*/
   	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribe_path);
@@ -194,7 +195,7 @@ static int newtopic_device_release(struct inode * inode, struct file * filp){
 
 static ssize_t newtopic_device_read(struct file * filp, char* buffer, size_t size, loff_t * offset){
   printk(KERN_INFO "Attempt to read from special file %s, nothing done\n", NEWTOPIC_NAME);
-  return size;
+  return 0;
 }
 
 static ssize_t newtopic_device_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
@@ -269,14 +270,15 @@ void cleanup_module(void){
   
   pr_info("Starting cleanup\n");
   device_destroy(cl, newtopic_dev);
+  int i,j;
   
-  for(int i=0; i< topics_count; ++i){
+  for(i=0; i< topics_count; ++i){
   	device_destroy(cl, subscribe_data[i]->subscribe_dev);
   }
   class_destroy(cl);
   cdev_del(&newtopic_cdev);
-  for(int i=0; i< topics_count; ++i){
-  	cdev_del(&subscribe_data[i]->subscribe_cdev);
+  for(j=0; j< topics_count; ++j){
+  	cdev_del(&subscribe_data[j]->subscribe_cdev);
   }
   printk(KERN_INFO "Module succesfully removed\n");
 
