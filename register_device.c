@@ -34,7 +34,7 @@ static struct class* cl;
 static dev_t newtopic_dev;
 static struct cdev newtopic_cdev;
 
-static struct topic_subscribe subscribe_data[MAX_TOPICS];
+static struct topic_subscribe* subscribe_data[MAX_TOPICS];
 
 static int topics_count = 0;
 
@@ -96,13 +96,13 @@ int add_new_topic(char* topic_name);
 
 int add_new_topic(char* topic_name){
 	
-	pr_info("The topic %s will now be created\n", topic_name),
+	pr_info("The topic %s will now be created\n", topic_name);
 	
 	if (cl == NULL)
 		pr_err("Class %s does not exist. Aborting\n", topic_name);
 		
-	struct topic_subscribe new_topic_subscribe = subscribe_data[topics_count];
-	new_topic_subscribe = kmalloc(sizeof(struct topic_subscribe), GFP_KERNEL);
+	struct topic_subscribe* new_topic_subscribe;
+	new_topic_subscribe = (struct topic_subscribe*) kmalloc(sizeof(struct topic_subscribe), GFP_KERNEL);
 		
 	/*Buffer containing the path of the "subscribe" special file for the
 	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribe"*/
@@ -122,7 +122,7 @@ int add_new_topic(char* topic_name){
 	/*Allocating Major number*/
   	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribe_path);
   
-  	if( (alloc_chrdev_region(new_topic_subscribe.subscribe_dev, 0, 1, topic_subscribe_path)) < 0){
+  	if( (alloc_chrdev_region(new_topic_subscribe->subscribe_dev, 0, 1, topic_subscribe_path)) < 0){
       		pr_err("Cannot allocate major number for device\n");
       		return -1;
   	}
@@ -131,14 +131,14 @@ int add_new_topic(char* topic_name){
   
   
   	//Initialize the cdev structure
-  	cdev_init(&new_topic_subscribe.subscribe_cdev, &new_topic_subscribe.subscribe_fo);
+  	cdev_init(&new_topic_subscribe->subscribe_cdev, &new_topic_subscribe->subscribe_fo);
   
   	//Add the special file to the system
-  	if (cdev_add(&new_topic_subscribe.subscribe_cdev, &new_topic_subscribe.subscribe_dev,1) < 0)
+  	if (cdev_add(&new_topic_subscribe->subscribe_cdev, &new_topic_subscribe->subscribe_dev,1) < 0)
   		pr_err("Could not add special file %s to system\n", topic_subscribe_path);
   	
   	//Create the special file newtopic
-  	if ( device_create(cl, NULL, new_topic_subscribe.subscribe_dev, NULL, topic_subscribe_path) == NULL){
+  	if ( device_create(cl, NULL, new_topic_subscribe.>subscribe_dev, NULL, topic_subscribe_path) == NULL){
   		printk(KERN_ALERT "Could not create the special file %s\n", topic_subscribe_path);
   	}
   	else
@@ -147,6 +147,8 @@ int add_new_topic(char* topic_name){
  	// Major = register_chrdev(DEFAULT_MAJOR, NEWTOPIC_NAME, &newtopic_fo);
 
   	//printk(KERN_INFO "Special file %s was assigned Major %d",topic_subscribe_path, Major);
+  	
+  	subscribe_data[topics_count]=new_topic_subscribe;
   	
   	topics_count++;
   	return 0;
