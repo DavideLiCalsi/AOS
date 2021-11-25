@@ -14,6 +14,8 @@
 #define NEWTOPIC_NAME "newtopic"
 #define MAX_TOPICS 100
 
+MODULE_LICENSE("GPL");
+
 //Github access token:
 //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
 
@@ -112,17 +114,17 @@ int add_new_topic(char* topic_name){
 	strcat(topic_subscribe_path, "/subscribe");
 	
 	/*Initialize the file operations struct*/
-	new_topic_subscribe.subscribe_fo = {
+	new_topic_subscribe->subscribe_fo = {
 		.read=subscribe_read,
 		.open=subscribe_open,
 		.write=subscribe_write,
 		.release=subscribe_release
-	}
+	};
 	
 	/*Allocating Major number*/
   	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribe_path);
   
-  	if( (alloc_chrdev_region(new_topic_subscribe->subscribe_dev, 0, 1, topic_subscribe_path)) < 0){
+  	if( (alloc_chrdev_region(&new_topic_subscribe->subscribe_dev, 0, 1, topic_subscribe_path)) < 0){
       		pr_err("Cannot allocate major number for device\n");
       		return -1;
   	}
@@ -134,11 +136,11 @@ int add_new_topic(char* topic_name){
   	cdev_init(&new_topic_subscribe->subscribe_cdev, &new_topic_subscribe->subscribe_fo);
   
   	//Add the special file to the system
-  	if (cdev_add(&new_topic_subscribe->subscribe_cdev, &new_topic_subscribe->subscribe_dev,1) < 0)
+  	if (cdev_add(&new_topic_subscribe->subscribe_cdev, new_topic_subscribe->subscribe_dev,1) < 0)
   		pr_err("Could not add special file %s to system\n", topic_subscribe_path);
   	
   	//Create the special file newtopic
-  	if ( device_create(cl, NULL, new_topic_subscribe.>subscribe_dev, NULL, topic_subscribe_path) == NULL){
+  	if ( device_create(cl, NULL, new_topic_subscribe->subscribe_dev, NULL, topic_subscribe_path) == NULL){
   		printk(KERN_ALERT "Could not create the special file %s\n", topic_subscribe_path);
   	}
   	else
@@ -267,8 +269,15 @@ void cleanup_module(void){
   
   pr_info("Starting cleanup\n");
   device_destroy(cl, newtopic_dev);
+  
+  for(int i=0; i< topics_count; ++i){
+  	device_destroy(cl, subscribe_data[i]->subscribe_dev);
+  }
   class_destroy(cl);
   cdev_del(&newtopic_cdev);
+  for(int i=0; i< topics_count; ++i){
+  	cdev_del(&subscribe_data[i]->subscribe_cdev);
+  }
   printk(KERN_INFO "Module succesfully removed\n");
 
 }
