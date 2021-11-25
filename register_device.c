@@ -15,11 +15,11 @@
 #define MAX_TOPICS 100
 
 //Github access token:
-//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
+//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
 
 struct topic_subscribe{
 	dev_t subscribe_dev;
-	cdev subscribe_cdev;
+	struct cdev subscribe_cdev;
 	int index;
 	int open_count;
 	char* name;
@@ -50,16 +50,10 @@ static int subscribe_open(struct inode * inode, struct file * filp){
 	strcpy(this_file, filp->f_path.dentry->d_name.name);
 
 	pr_info("Opening subscription file %s\n", this_file);
+	
+	return 0;
 }
 
-static int subscribe_open(struct inode * inode, struct file * filp){
-
-	//Get the file name of this special file
-	char this_file[50];
-	strcpy(this_file, filp->f_path.dentry->d_name.name);
-
-	pr_info("Opening subscription file %s\n", this_file);
-}
 
 static int subscribe_release(struct inode * inode, struct file * filp){
 
@@ -68,6 +62,8 @@ static int subscribe_release(struct inode * inode, struct file * filp){
 	strcpy(this_file, filp->f_path.dentry->d_name.name);
 
 	pr_info("Releasing subscription file %s\n", this_file);
+	
+	return 0;
 }
 
 static ssize_t subscribe_read(struct file * filp, char* buffer, size_t size, loff_t * offset){
@@ -77,6 +73,8 @@ static ssize_t subscribe_read(struct file * filp, char* buffer, size_t size, lof
 	strcpy(this_file, filp->f_path.dentry->d_name.name);
 
 	pr_info("Reading subscription file %s\n", this_file);
+	
+	return 0;
 }
 
 static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
@@ -86,6 +84,8 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 	strcpy(this_file, filp->f_path.dentry->d_name.name);
 
 	pr_info("Writing subscription file %s\n", this_file);
+	
+	return 0;
 }
 
 
@@ -96,13 +96,13 @@ int add_new_topic(char* topic_name);
 
 int add_new_topic(char* topic_name){
 	
-	pr_info("The topic %s will now be created\n"),
+	pr_info("The topic %s will now be created\n", topic_name),
 	
 	if (cl == NULL)
-		pr_err("Class %s does not exist. Aborting\n");
+		pr_err("Class %s does not exist. Aborting\n", topic_name);
 		
-	struct new_topic_subscribe = subscribe_data[topics_count];
-	new_topic_subscribe = kmalloc(sizeof(struct topic_subscribe));
+	struct topic_subscribe new_topic_subscribe = subscribe_data[topics_count];
+	new_topic_subscribe = kmalloc(sizeof(struct topic_subscribe), GFP_KERNEL);
 		
 	/*Buffer containing the path of the "subscribe" special file for the
 	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribe"*/
@@ -146,7 +146,7 @@ int add_new_topic(char* topic_name){
 
  	// Major = register_chrdev(DEFAULT_MAJOR, NEWTOPIC_NAME, &newtopic_fo);
 
-  	printk(KERN_INFO "Special file %s was assigned Major %d",topic_subscribe_path, Major);
+  	//printk(KERN_INFO "Special file %s was assigned Major %d",topic_subscribe_path, Major);
   	
   	topics_count++;
   	return 0;
