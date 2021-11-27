@@ -13,6 +13,7 @@
 #define FILE_CLASS "AOS_PS_IPC"
 #define NEWTOPIC_NAME "newtopic"
 #define MAX_TOPICS 100
+#define MAX_SIG 30
 
 MODULE_LICENSE("GPL");
 
@@ -146,7 +147,7 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	
 	//Convert the signal number to string
 	char signal_as_string[5] = "";
-	snprintf(signal_as_string, 5, "%d", signal_code);
+	sprintf(signal_as_string,"%d", signal_code);
 	
 	//Copy it to buffer
 	int error_count = 0;
@@ -194,7 +195,10 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	long signal_nr;
 	kstrtol(signal_as_string,10,&signal_nr);
 	
-	temp->signal_nr = signal_nr;
+    if( signal_nr <= MAX_SIG)
+        temp->signal_nr = signal_nr;
+    else
+        pr_err("Signal number is too high. Overwriting denied. \n");
 	
 	return size;
 }
