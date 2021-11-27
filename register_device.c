@@ -125,10 +125,11 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	char this_file[50];
 	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 	struct topic_subscribe* temp = NULL;
+	int i;
 	
-	for( int i=0; i< topics_count; i++){
+	for( i=0; i< topics_count; i++){
 	
-		if ( !strcmp(this_file, subsribe_data[i]->name) ){
+		if ( !strcmp(this_file, subscribe_data[i]->name) ){
 			
 			temp = subscribe_data[i];
 			break;
@@ -137,7 +138,7 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	}
 	
 	if ( temp == NULL){
-		pr_error("Anomaly detected! Topic not found in the system\n");
+		pr_err("Anomaly detected! Topic not found in the system\n");
 		return 0;
 	}
 	
@@ -165,10 +166,11 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	pr_info("Attempting to overwrite signal_nr for topic %s\n", this_file);
 	
 	struct topic_subscribe* temp = NULL;
+	int i;
 	
-	for( int i=0; i< topics_count; i++){
+	for( i=0; i< topics_count; i++){
 	
-		if ( !strcmp(this_file, subsribe_data[i]->name) ){
+		if ( !strcmp(this_file, subscribe_data[i]->name) ){
 			
 			temp = subscribe_data[i];
 			break;
@@ -177,7 +179,7 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	}
 	
 	if ( temp == NULL){
-		pr_error("Anomaly detected! Topic not found in the system\n");
+		pr_err("Anomaly detected! Topic not found in the system\n");
 		return 0;
 	}
 	
@@ -216,9 +218,10 @@ int add_new_topic(char* topic_name){
 		
 	struct topic_subscribe* new_topic_subscribe;
 	new_topic_subscribe = (struct topic_subscribe*) kmalloc(sizeof(struct topic_subscribe), GFP_KERNEL);
-	new_topic_subscribe->index=topic_count;
+	new_topic_subscribe->index=topics_count;
 	new_topic_subscribe->open_count=0;
 	new_topic_subscribe->signal_nr=-1; //Default, no signal
+	new_topic_subscribe->name = (char *) kmalloc(sizeof(char)*30, GFP_KERNEL);
 	strcpy(new_topic_subscribe->name, topic_name);
 		
 	/*Buffer containing the path of the "subscribe" special file for the
