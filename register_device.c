@@ -20,12 +20,25 @@ MODULE_LICENSE("GPL");
 //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
 
 struct topic_subscribe{
+
+	//dev_t and cdev for the 'subscribe' file
 	dev_t subscribe_dev;
 	struct cdev subscribe_cdev;
+	
+	//dev_t and cdev for the 'signal_nr' file
+	dev_t signal_nr_dev;
+	struct cdev signal_nr_cdev;
+	
+	//dev_t and cdev for the 'subscribers' file
+	dev_t subscribers_dev;
+	struct cdev subscribers_cdev;
+	
 	int index;
 	int open_count;
+	int signal_nr;
 	char* name;
 	struct file_operations subscribe_fo;
+	struct file_operations signal_nr_fo;
 };
 
 /*##################################################
@@ -90,6 +103,99 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 	return 0;
 }
 
+static int signal_nr_open(struct inode * inode, struct file * filp);
+static int signal_nr_release(struct inode * inode, struct file * filp);
+static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, loff_t * offset);
+static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t size, loff_t * offset);
+
+static int signal_nr_open(struct inode * inode, struct file * filp){
+
+	pr_info("Opening signal_nr file\n");
+	return 0;
+}
+
+static int signal_nr_release(struct inode * inode, struct file * filp){
+
+	pr_info("Releasing signal_nr file\n");
+	return 0;
+}
+
+static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, loff_t * offset){
+
+	char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
+	struct topic_subscribe* temp = NULL;
+	
+	for( int i=0; i< topics_count; i++){
+	
+		if ( !strcmp(this_file, subsribe_data[i]->name) ){
+			
+			temp = subscribe_data[i];
+			break;
+		}
+		
+	}
+	
+	if ( temp == NULL){
+		pr_error("Anomaly detected! Topic not found in the system\n");
+		return 0;
+	}
+	
+	int signal_code = temp->signal_nr;
+	
+	//Convert the signal number to string
+	char signal_as_string[5] = "";
+	snprintf(signal_as_string, 5, "%d", signal_code);
+	
+	//Copy it to buffer
+	int error_count = 0;
+	
+	error_count = copy_to_user(buffer, signal_as_string, size);
+	
+	pr_info("The signal received for topic %s is %s\n", this_file, signal_as_string);
+	
+	return 0;
+}
+
+static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
+	
+	char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
+	
+	pr_info("Attempting to overwrite signal_nr for topic %s\n", this_file);
+	
+	struct topic_subscribe* temp = NULL;
+	
+	for( int i=0; i< topics_count; i++){
+	
+		if ( !strcmp(this_file, subsribe_data[i]->name) ){
+			
+			temp = subscribe_data[i];
+			break;
+		}
+		
+	}
+	
+	if ( temp == NULL){
+		pr_error("Anomaly detected! Topic not found in the system\n");
+		return 0;
+	}
+	
+	long not_copied;
+	char signal_as_string[5];
+	
+	not_copied = copy_from_user(signal_as_string, buffer, size);
+	
+	pr_info("Provided signal code: %s\n", signal_as_string);
+	
+	//Convert the signal from string to int
+	long signal_nr;
+	kstrtol(signal_as_string,10,&signal_nr);
+	
+	temp->signal_nr = signal_nr;
+	
+	return size;
+}
 
 /*##################################################
 #   Utility functions for better code readability  #
@@ -110,6 +216,10 @@ int add_new_topic(char* topic_name){
 		
 	struct topic_subscribe* new_topic_subscribe;
 	new_topic_subscribe = (struct topic_subscribe*) kmalloc(sizeof(struct topic_subscribe), GFP_KERNEL);
+	new_topic_subscribe->index=topic_count;
+	new_topic_subscribe->open_count=0;
+	new_topic_subscribe->signal_nr=-1; //Default, no signal
+	strcpy(new_topic_subscribe->name, topic_name);
 		
 	/*Buffer containing the path of the "subscribe" special file for the
 	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribe"*/
@@ -117,6 +227,13 @@ int add_new_topic(char* topic_name){
 	strcat(topic_subscribe_path, "/topics/");
 	strcat(topic_subscribe_path, topic_name);
 	strcat(topic_subscribe_path, "/subscribe");
+	
+	/*Buffer containing the path of the "signal_nr" special file for the
+	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribe"*/
+	char topic_signal_path[60]="";
+	strcat(topic_signal_path, "/topics/");
+	strcat(topic_signal_path, topic_name);
+	strcat(topic_signal_path, "/signal_nr");
 	
 	/*Initialize the file operations struct*/
 	struct file_operations fo = {
@@ -127,26 +244,42 @@ int add_new_topic(char* topic_name){
 	};
 	new_topic_subscribe->subscribe_fo = fo; 
 	
+	struct file_operations signal_fo = {
+		.read=signal_nr_read,
+		.open=signal_nr_open,
+		.write=signal_nr_write,
+		.release=signal_nr_release
+	};
+	new_topic_subscribe->signal_nr_fo = signal_fo;
+	
 	/*Allocating Major number*/
   	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribe_path);
+  	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_signal_path);
   
-  	if( (alloc_chrdev_region(&new_topic_subscribe->subscribe_dev, 0, 1, topic_subscribe_path)) < 0){
+  	if( (alloc_chrdev_region(&new_topic_subscribe->signal_nr_dev, 0, 1, topic_signal_path)) < 0 || 
+  		(alloc_chrdev_region(&new_topic_subscribe->subscribe_dev, 0, 1, topic_subscribe_path)) < 0){
+  		
       		pr_err("Cannot allocate major number for device\n");
       		return -1;
   	}
   
   	pr_info("Obtained Major = %d Minor = %d \n",MAJOR(newtopic_dev), MINOR(newtopic_dev));
+  	pr_info("Obtained Major = %d Minor = %d \n",MAJOR(newtopic_dev), MINOR(newtopic_dev));
   
   
   	//Initialize the cdev structure
   	cdev_init(&new_topic_subscribe->subscribe_cdev, &new_topic_subscribe->subscribe_fo);
+  	cdev_init(&new_topic_subscribe->signal_nr_cdev, &new_topic_subscribe->signal_nr_fo);
   
   	//Add the special file to the system
-  	if (cdev_add(&new_topic_subscribe->subscribe_cdev, new_topic_subscribe->subscribe_dev,1) < 0)
+  	if (cdev_add(&new_topic_subscribe->subscribe_cdev, new_topic_subscribe->subscribe_dev,1) < 0 ||
+  		cdev_add(&new_topic_subscribe->signal_nr_cdev, new_topic_subscribe->signal_nr_dev,1) < 0 )
+  		
   		pr_err("Could not add special file %s to system\n", topic_subscribe_path);
   	
-  	//Create the special file newtopic
-  	if ( device_create(cl, NULL, new_topic_subscribe->subscribe_dev, NULL, topic_subscribe_path) == NULL){
+  	//Create the special files subscribe and signal_nr
+  	if ( device_create(cl, NULL, new_topic_subscribe->subscribe_dev, NULL, topic_subscribe_path) == NULL ||
+  		device_create(cl, NULL, new_topic_subscribe->signal_nr_dev, NULL, topic_signal_path) == NULL  ){
   		printk(KERN_ALERT "Could not create the special file %s\n", topic_subscribe_path);
   	}
   	else
