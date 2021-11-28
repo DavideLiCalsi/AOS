@@ -421,6 +421,7 @@ void cleanup_module(void){
   
   for(i=0; i< topics_count; ++i){
   	device_destroy(cl, subscribe_data[i]->subscribe_dev);
+    device_destroy(cl, subscribe_data[i]->signal_nr_dev);
   }
   
   //Destroy the class AOS_PS_IPC
@@ -430,6 +431,7 @@ void cleanup_module(void){
   cdev_del(&newtopic_cdev);
   for(j=0; j< topics_count; ++j){
   	cdev_del(&subscribe_data[j]->subscribe_cdev);
+    cdev_del(&subscribe_data[j]->signal_nr_cdev);
   }
   
   printk(KERN_INFO "Module succesfully removed\n");
