@@ -8,19 +8,18 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
+#include <linux/list.h>
+
 #include <asm/uaccess.h>
 
 #define FILE_CLASS "AOS_PS_IPC"
 #define NEWTOPIC_NAME "newtopic"
 #define MAX_TOPICS 100
 #define MAX_SIG 30
-#define MAX_SUBSCRIBERS 300
 
 MODULE_LICENSE("GPL");
 
-//Github access token:
-//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
-
+/*Utility struct containing all data related to a topic*/
 struct topic_subscribe{
 
 	//dev_t and cdev for the 'subscribe' file
@@ -49,10 +48,6 @@ struct topic_subscribe{
     struct file_operations subscribers_fo;
 };
 
-/*##################################################
-#   Global variables to create character dev files  #
-###################################################*/
-
 static struct class* cl;
 static dev_t newtopic_dev;
 static struct cdev newtopic_cdev;
@@ -60,6 +55,26 @@ static struct cdev newtopic_cdev;
 static struct topic_subscribe* subscribe_data[MAX_TOPICS];
 
 static int topics_count = 0;
+
+/*##################################################
+#       Utility functions to ease development      #
+###################################################*/
+struct topic_subscribe* search_topic_subscribe(char* name){
+
+    int i;
+
+    for(i=0; i<topics_count; ++i){
+
+        if (!strcmp(name, topic_subscribe[i]->name) )
+            return topic_subscribe[i];
+    }
+
+    return NULL;
+}
+
+/*##################################################
+#   Global variables to create character dev files  #
+###################################################*/
 
 static int subscribe_open(struct inode * inode, struct file * filp);
 static int subscribe_release(struct inode * inode, struct file * filp);
@@ -133,7 +148,7 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	char this_file[50];
 	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 	struct topic_subscribe* temp = NULL;
-	int i;
+	/*int i;
 	
 	for( i=0; i< topics_count; i++){
 	
@@ -143,7 +158,9 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 			break;
 		}
 		
-	}
+	}*/
+
+	temp=search_topic_subscribe(this_file);
 	
 	if ( temp == NULL){
 		pr_err("Anomaly detected! Topic not found in the system\n");
@@ -174,7 +191,8 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	pr_info("Attempting to overwrite signal_nr for topic %s\n", this_file);
 	
 	struct topic_subscribe* temp = NULL;
-	int i;
+
+    /*int i;
 	
 	for( i=0; i< topics_count; i++){
 	
@@ -184,8 +202,10 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 			break;
 		}
 		
-	}
+	}*/
 	
+    temp=search_topic_subscribe(this_file);
+
 	if ( temp == NULL){
 		pr_err("Anomaly detected! Topic not found in the system\n");
 		return 0;
@@ -238,7 +258,7 @@ static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t 
 
 
 /*##################################################
-#   Utility functions for better code readability  #
+#       Function that registers a new topic        #
 ###################################################*/
 
 /*Adds a new topic with name topic_name.
