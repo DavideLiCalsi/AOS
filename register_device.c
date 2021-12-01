@@ -322,12 +322,12 @@ int add_new_topic(char* topic_name){
   
   	pr_info("%s: Obtained Major = %d Minor = %d \n",topic_subscribe_path, MAJOR(new_topic_subscribe->subscribe_dev), MINOR(new_topic_subscribe->subscribe_dev));
   	pr_info("%s Obtained Major = %d Minor = %d \n",topic_signal_path, MAJOR(new_topic_subscribe->signal_nr_dev), MINOR(new_topic_subscribe->signal_nr_dev));
-    pr_info("%s: Obtained Major = %d Minor = %d \n",topic_subscribe_path, MAJOR(new_topic_subscribe->subscribers_dev), MINOR(new_topic_subscribe->subscribers_dev));
+    pr_info("%s: Obtained Major = %d Minor = %d \n",topic_subscribers_path, MAJOR(new_topic_subscribe->subscribers_dev), MINOR(new_topic_subscribe->subscribers_dev));
   
   	//Initialize the cdev structure
   	cdev_init(&new_topic_subscribe->subscribe_cdev, &new_topic_subscribe->subscribe_fo);
   	cdev_init(&new_topic_subscribe->signal_nr_cdev, &new_topic_subscribe->signal_nr_fo);
-    cdev_init(&new_topic_subscribe->subscribers_cdev, &new_topic_subscribe->subscriberd_fo);
+    cdev_init(&new_topic_subscribe->subscribers_cdev, &new_topic_subscribe->subscribers_fo);
   
   	//Add the special file to the system
   	if (cdev_add(&new_topic_subscribe->subscribe_cdev, new_topic_subscribe->subscribe_dev,1) < 0 ||
@@ -471,6 +471,7 @@ void cleanup_module(void){
   for(i=0; i< topics_count; ++i){
   	device_destroy(cl, subscribe_data[i]->subscribe_dev);
     device_destroy(cl, subscribe_data[i]->signal_nr_dev);
+    device_destroy(cl, subscribe_data[i]->subscribers_dev);
   }
   
   //Destroy the class AOS_PS_IPC
@@ -481,6 +482,7 @@ void cleanup_module(void){
   for(j=0; j< topics_count; ++j){
   	cdev_del(&subscribe_data[j]->subscribe_cdev);
     cdev_del(&subscribe_data[j]->signal_nr_cdev);
+    cdev_del(&subscribe_data[j]->subscribers_cdev);
   }
   
   printk(KERN_INFO "Module succesfully removed\n");
