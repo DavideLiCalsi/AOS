@@ -306,6 +306,7 @@ int add_new_topic(char* topic_name){
         .write=subscribers_write,
         .release=subscribers_release
     };
+    new_topic_subscribe->subscribers_fo = subscribers_fo;
 	
 	/*Allocating Major number*/
   	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribe_path);
