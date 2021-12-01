@@ -14,6 +14,7 @@
 #define NEWTOPIC_NAME "newtopic"
 #define MAX_TOPICS 100
 #define MAX_SIG 30
+#define MAX_SUBSCRIBERS 300
 
 MODULE_LICENSE("GPL");
 
@@ -34,12 +35,18 @@ struct topic_subscribe{
 	dev_t subscribers_dev;
 	struct cdev subscribers_cdev;
 	
+    //Index of this topic
 	int index;
 	int open_count;
+
+    //Current signal number
 	int signal_nr;
 	char* name;
+
+    //file_operations structs
 	struct file_operations subscribe_fo;
 	struct file_operations signal_nr_fo;
+    struct file_operations subscribers_fo;
 };
 
 /*##################################################
@@ -187,7 +194,8 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	long not_copied;
 	char signal_as_string[5];
 	
-	not_copied = copy_from_user(signal_as_string, buffer, size);
+	not_copied = copy_from_user(signal_as_string, buffer, 1);
+    signal_as_string[1]='\0';
 	
 	pr_info("Provided signal code: %s\n", signal_as_string);
 	
@@ -202,6 +210,32 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	
 	return size;
 }
+
+static int subscribers_open(struct inode * inode, struct file * filp);
+static int subscribers_release(struct inode * inode, struct file * filp);
+static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, loff_t * offset);
+static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t size, loff_t * offset);
+
+static int subscribers_open(struct inode * inode, struct file * filp){
+    pr_info("Opening subscribers file\n");
+    return 0;
+}
+
+static int subscribers_release(struct inode * inode, struct file * filp){
+    pr_info("Releasing subscribers file\n");
+    return 0;
+}
+
+static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, loff_t * offset){
+    pr_info("Here's a list of the subscribers\n");
+    return 0;
+}
+
+static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
+    pr_info("Writing to subscribers file has no effect\n");
+    return 0;
+}
+
 
 /*##################################################
 #   Utility functions for better code readability  #
@@ -236,13 +270,20 @@ int add_new_topic(char* topic_name){
 	strcat(topic_subscribe_path, "/subscribe");
 	
 	/*Buffer containing the path of the "signal_nr" special file for the
-	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribe"*/
+	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/signal_nr"*/
 	char topic_signal_path[60]="";
 	strcat(topic_signal_path, "/topics/");
 	strcat(topic_signal_path, topic_name);
 	strcat(topic_signal_path, "/signal_nr");
+
+    /*Buffer containing the path of the "subscribers" special file for the
+	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribers"*/
+	char topic_subscribers_path[60]="";
+	strcat(topic_subscribers_path, "/topics/");
+	strcat(topic_subscribers_path, topic_name);
+	strcat(topic_subscribers_path, "/subscribers");
 	
-	/*Initialize the file operations struct*/
+	/*Initialize the file operations structs*/
 	struct file_operations fo = {
 		.read=subscribe_read,
 		.open=subscribe_open,
@@ -258,43 +299,51 @@ int add_new_topic(char* topic_name){
 		.release=signal_nr_release
 	};
 	new_topic_subscribe->signal_nr_fo = signal_fo;
+
+    struct file_operations subscribers_fo = {
+        .read=subscribers_read,
+        .open=subscribers_open,
+        .write=subscribers_write,
+        .release=subscribers_release
+    };
 	
 	/*Allocating Major number*/
   	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribe_path);
   	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_signal_path);
+    pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribers_path);
   
   	if( (alloc_chrdev_region(&new_topic_subscribe->signal_nr_dev, 0, 1, topic_signal_path)) < 0 || 
-  		(alloc_chrdev_region(&new_topic_subscribe->subscribe_dev, 0, 1, topic_subscribe_path)) < 0){
+  		(alloc_chrdev_region(&new_topic_subscribe->subscribe_dev, 0, 1, topic_subscribe_path)) < 0 ||
+  		(alloc_chrdev_region(&new_topic_subscribe->subscribers_dev, 0, 1, topic_subscribers_path)) < 0){
   		
-      		pr_err("Cannot allocate major number for device\n");
+      		pr_err("Cannot allocate major numbers for devices\n");
       		return -1;
   	}
   
-  	pr_info("Obtained Major = %d Minor = %d \n",MAJOR(newtopic_dev), MINOR(newtopic_dev));
-  	pr_info("Obtained Major = %d Minor = %d \n",MAJOR(newtopic_dev), MINOR(newtopic_dev));
-  
+  	pr_info("%s: Obtained Major = %d Minor = %d \n",topic_subscribe_path, MAJOR(new_topic_subscribe->subscribe_dev), MINOR(new_topic_subscribe->subscribe_dev));
+  	pr_info("%s Obtained Major = %d Minor = %d \n",topic_signal_path, MAJOR(new_topic_subscribe->signal_nr_dev), MINOR(new_topic_subscribe->signal_nr_dev));
+    pr_info("%s: Obtained Major = %d Minor = %d \n",topic_subscribe_path, MAJOR(new_topic_subscribe->subscribers_dev), MINOR(new_topic_subscribe->subscribers_dev));
   
   	//Initialize the cdev structure
   	cdev_init(&new_topic_subscribe->subscribe_cdev, &new_topic_subscribe->subscribe_fo);
   	cdev_init(&new_topic_subscribe->signal_nr_cdev, &new_topic_subscribe->signal_nr_fo);
+    cdev_init(&new_topic_subscribe->subscribers_cdev, &new_topic_subscribe->subscriberd_fo);
   
   	//Add the special file to the system
   	if (cdev_add(&new_topic_subscribe->subscribe_cdev, new_topic_subscribe->subscribe_dev,1) < 0 ||
-  		cdev_add(&new_topic_subscribe->signal_nr_cdev, new_topic_subscribe->signal_nr_dev,1) < 0 )
+  		cdev_add(&new_topic_subscribe->signal_nr_cdev, new_topic_subscribe->signal_nr_dev,1) < 0  ||
+        cdev_add(&new_topic_subscribe->subscribers_cdev, new_topic_subscribe->subscribers_dev,1) < 0 )
   		
-  		pr_err("Could not add special file %s to system\n", topic_subscribe_path);
+  		pr_err("Could not add special files to system\n");
   	
   	//Create the special files subscribe and signal_nr
   	if ( device_create(cl, NULL, new_topic_subscribe->subscribe_dev, NULL, topic_subscribe_path) == NULL ||
-  		device_create(cl, NULL, new_topic_subscribe->signal_nr_dev, NULL, topic_signal_path) == NULL  ){
-  		printk(KERN_ALERT "Could not create the special file %s\n", topic_subscribe_path);
+  		device_create(cl, NULL, new_topic_subscribe->signal_nr_dev, NULL, topic_signal_path) == NULL ||
+        device_create(cl, NULL, new_topic_subscribe->subscribers_dev, NULL, topic_subscribers_path) == NULL ){
+  		printk(KERN_ALERT "Could not create one of the special files\n");
   	}
   	else
-  		printk(KERN_INFO "Succesfully created special file %s\n", topic_subscribe_path);
-
- 	// Major = register_chrdev(DEFAULT_MAJOR, NEWTOPIC_NAME, &newtopic_fo);
-
-  	//printk(KERN_INFO "Special file %s was assigned Major %d",topic_subscribe_path, Major);
+  		printk(KERN_INFO "Succesfully created special files\n");
   	
   	subscribe_data[topics_count]=new_topic_subscribe;
   	
