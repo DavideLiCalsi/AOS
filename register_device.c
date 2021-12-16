@@ -111,14 +111,14 @@ int charbuf_to_int(char* buf){
 
 /*Converts a path of a subscribe special file to its topic name, e.g.
  /dev/topics/topic_name/subscribe is converted to topic_name*/
-char* extract_topic_name(char* raw_path){
+void extract_topic_name(char* raw_path, char* topic_name){
 
     int i=0,j=0;
     char topic_name[MAX_TOPIC_LEN];
     int len=strlen(raw_path);
     short int slash_count = 0;
 
-    for(i=0; i<len, slash_count==4; i++){
+    for(i=0; i<len && slash_count<4; i++){
 
         if (slash_count == 3 ){
             topic_name[j]=topic_name[i] != '/' ? raw_path[i] : '\0';
@@ -127,8 +127,6 @@ char* extract_topic_name(char* raw_path){
 
         slash_count += 1 * (raw_path[i] == '/');
     }
-
-    return topic_name;
 
 }
 
@@ -178,7 +176,7 @@ static ssize_t subscribe_read(struct file * filp, char* buffer, size_t size, lof
 static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
 
 	//Get the file name of this special file
-	char this_file[50];
+	char this_file[50], topic_name[50];
 	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
 	pr_info("Writing subscription file for topic %s\n", this_file);
@@ -208,7 +206,8 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
     new->pid = pid;
 
     //Retrieve the pid_list pointer in order to add the new pid to the linked list
-    struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( extract_topic_name(this_file));
+    extract_topic_name(this_file, topic_name);
+    struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( topic_name);
 
     if( this_topic_subscribe == NULL) return -EFAULT;
     struct list_head* this_list = this_topic_subscribe->pid_list;
