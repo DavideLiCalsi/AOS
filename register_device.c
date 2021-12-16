@@ -23,7 +23,7 @@ MODULE_LICENSE("GPL");
 /*Utility struct to implement a list of integers. It will store
  the PIDs of the processes that subscribe to a topic*/
 struct pid_node{
-    unsigned int pid;
+    int pid;
     struct list_head* list;
 };
 
@@ -53,7 +53,7 @@ struct topic_subscribe{
 	char* name;
 
     //subscribed PIDs list
-    struct list_head* pid_list;;
+    struct list_head* pid_list;
 
     //file_operations structs
 	struct file_operations subscribe_fo;
@@ -199,7 +199,7 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 
     //Now create the struct pid_node to add the list of subscribers
     struct pid_node* new = pid >= 0 ? kmalloc(sizeof(struct pid_node), GFP_KERNEL): NULL;
-    new->list = kmalloc(sizeof(struct list_head));
+    new->list = kmalloc(sizeof(struct list_head), GFP_KERNEL);
 
     //Fault if new is null
     if (new == NULL)
@@ -219,7 +219,7 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 
     pr_info("Process %d has succesfully subscribed!\n", pid);
 
-    return 0;
+    return sizeof(int);
 }
 
 /*##########################################################################################
@@ -328,7 +328,30 @@ static int subscribers_release(struct inode * inode, struct file * filp){
 }
 
 static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, loff_t * offset){
-    pr_info("Here's a list of the subscribers\n");
+
+    char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
+
+    pr_info("Here's a list of the subscribers to topic %s\n", this_file);
+
+    struct topic_subscribe* temp = NULL;
+
+    temp=search_topic_subscribe(this_file);
+
+	if ( temp == NULL || temp->pid_list == NULL){
+		pr_err("Anomaly detected! Topic not found in the system or list is not initialized\n");
+		return -EFAULT;
+	}
+
+	struct list_head* pids = temp->pid_list, cursor;
+
+    list_for_each(cursor,pids){
+
+        struct pid_node* sub_process = list_entry(cursor,struct pid_node,list);
+        pr_info("%d\n", pid_node->pid);
+    }
+
+
     return 0;
 }
 
