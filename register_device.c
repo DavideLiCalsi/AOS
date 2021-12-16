@@ -16,8 +16,16 @@
 #define NEWTOPIC_NAME "newtopic"
 #define MAX_TOPICS 100
 #define MAX_SIG 30
+#define MAX_TOPIC_LEN 50
 
 MODULE_LICENSE("GPL");
+
+/*Utility struct to implement a list of integers. It will store
+ the PIDs of the processes that subscribe to a topic*/
+struct pid_node{
+    unsigned int pid;
+    list_head* list;
+};
 
 /*Utility struct containing all data related to a topic*/
 struct topic_subscribe{
@@ -40,7 +48,12 @@ struct topic_subscribe{
 
     //Current signal number
 	int signal_nr;
+
+    //Topic name
 	char* name;
+
+    //subscribed PIDs list
+    struct list_head* pid_list;;
 
     //file_operations structs
 	struct file_operations subscribe_fo;
@@ -59,22 +72,69 @@ static int topics_count = 0;
 /*##################################################
 #       Utility functions to ease development      #
 ###################################################*/
+
+/*Search a topic by name*/
 struct topic_subscribe* search_topic_subscribe(char* name){
 
     int i;
 
     for(i=0; i<topics_count; ++i){
 
-        if (!strcmp(name, topic_subscribe[i]->name) )
-            return topic_subscribe[i];
+        if (!strcmp(name, subscribe_data[i]->name) )
+            return subscribe_data[i];
     }
 
     return NULL;
 }
 
-/*##################################################
-#   Global variables to create character dev files  #
-###################################################*/
+/*Convert a buffer of chars to an int. The function converts only
+ the first sizeof(int) chars*/
+int charbuf_to_int(char* buf){
+
+    int res = 0;
+
+    //If you don't have at least 4 chars, abort
+    if( strlen(buf) < sizeof(int))
+        return -1;
+
+    int i;
+    const int factor = 1;
+
+    for(i=0;i<sizeof(int); ++i, factor*=256){
+
+        res += ( (int) buf[i] ) * factor;
+    }
+
+    return res;
+
+}
+
+/*Converts a path of a subscribe special file to its topic name, e.g.
+ /dev/topics/topic_name/subscribe is converted to topic_name*/
+char* extract_topic_name(char* raw_path){
+
+    int i=0,j=0;
+    char topic_name[MAX_TOPIC_LEN];
+    int len=strlen(raw_path);
+    short int slash_count = 0;
+
+    for(i=0; i<len, slash_count==4; i++){
+
+        if (slash_count == 3 ){
+            topic_name[j]=topic_name[i] != '/' ? raw_path[i] : '\0';
+            ++j;
+        }
+
+        slash_count += 1 * (raw_path[i] == '/');
+    }
+
+    return topic_name;
+
+}
+
+/*##########################################################################################
+#   Functions to pass to struct file_operations to manage the subscribe special file(s)  #
+###########################################################################################*/
 
 static int subscribe_open(struct inode * inode, struct file * filp);
 static int subscribe_release(struct inode * inode, struct file * filp);
@@ -118,13 +178,50 @@ static ssize_t subscribe_read(struct file * filp, char* buffer, size_t size, lof
 static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
 
 	//Get the file name of this special file
-	char this_file[50];
+	char this_file[50], topic[50];
 	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
 	pr_info("Writing subscription file for topic %s\n", this_file);
-	
-	return 0;
+
+    //Create the struct pid_node to add to the list
+    char pid_buf[sizeof(int)];
+    long not_copied = copy_from_user(pid_buf, buffer, sizeof(int));
+    int pid;
+
+    //First retrieve the pid of the process writing to this file
+    if(not_copied != 0){
+        pr_err("Could not read the entire pid from userspace, aborted\n");
+        return -EFAULT;
+    }
+    else{
+        pid = charbuf_to_int(pid_buf);
+        pr_info("Adding process %d to the list of subscribers\n", pid);
+    }
+
+    //Now create the struct pid_node to add the list of subscribers
+    struct pid_node* new = pid >= 0 ? kmalloc(sizeof(struct pid_node), GFP_KERNEL): NULL;
+
+    //Fault if new is null
+    if (new == NULL)
+        return -EFAULT;
+
+    //Retrieve the pid_list pointer in order to add the new pid to the linked list
+    struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( extract_topic_name(this_file));
+
+    if( this_topic_subscribe == NULL) return -EFAULT;
+    struct list_head* this_list = this_topic_subscribe->pid_list;
+
+    //Perform the add
+    list_add_tail(new, this_list);
+
+    pr_info("Process %d has succesfully subscribed!\n");
+
+    return 0;
 }
+
+/*##########################################################################################
+#   Functions to pass to struct file_operations to manage the signal_nr special file(s)  #
+###########################################################################################*/
 
 static int signal_nr_open(struct inode * inode, struct file * filp);
 static int signal_nr_release(struct inode * inode, struct file * filp);
@@ -148,17 +245,6 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	char this_file[50];
 	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 	struct topic_subscribe* temp = NULL;
-	/*int i;
-	
-	for( i=0; i< topics_count; i++){
-	
-		if ( !strcmp(this_file, subscribe_data[i]->name) ){
-			
-			temp = subscribe_data[i];
-			break;
-		}
-		
-	}*/
 
 	temp=search_topic_subscribe(this_file);
 	
@@ -191,18 +277,6 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	pr_info("Attempting to overwrite signal_nr for topic %s\n", this_file);
 	
 	struct topic_subscribe* temp = NULL;
-
-    /*int i;
-	
-	for( i=0; i< topics_count; i++){
-	
-		if ( !strcmp(this_file, subscribe_data[i]->name) ){
-			
-			temp = subscribe_data[i];
-			break;
-		}
-		
-	}*/
 	
     temp=search_topic_subscribe(this_file);
 
@@ -230,6 +304,10 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	
 	return size;
 }
+
+/*##########################################################################################
+#   Functions to pass to struct file_operations to manage the subscribers special file(s)  #
+###########################################################################################*/
 
 static int subscribers_open(struct inode * inode, struct file * filp);
 static int subscribers_release(struct inode * inode, struct file * filp);
@@ -365,6 +443,9 @@ int add_new_topic(char* topic_name){
   	}
   	else
   		printk(KERN_INFO "Succesfully created special files\n");
+
+    //Initialize the list of subscriber's PIDs
+    INIT_LIST_HEAD(new_topic_subscribe->pid_list);
   	
   	subscribe_data[topics_count]=new_topic_subscribe;
   	
