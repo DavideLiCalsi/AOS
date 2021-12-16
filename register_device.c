@@ -114,7 +114,7 @@ int charbuf_to_int(char* buf){
 void extract_topic_name(char* raw_path, char* topic_name){
 
     int i=0,j=0;
-    char topic_name[MAX_TOPIC_LEN];
+
     int len=strlen(raw_path);
     short int slash_count = 0;
 
@@ -446,6 +446,7 @@ int add_new_topic(char* topic_name){
   		printk(KERN_INFO "Succesfully created special files\n");
 
     //Initialize the list of subscriber's PIDs
+    new_topic_subscribe->pid_list = kmalloc(sizeof(list_head), GFP_KERNEL);
     INIT_LIST_HEAD(new_topic_subscribe->pid_list);
   	
   	subscribe_data[topics_count]=new_topic_subscribe;
