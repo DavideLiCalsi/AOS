@@ -199,6 +199,7 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 
     //Now create the struct pid_node to add the list of subscribers
     struct pid_node* new = pid >= 0 ? kmalloc(sizeof(struct pid_node), GFP_KERNEL): NULL;
+    new->list = kmalloc(sizeof(struct list_head));
 
     //Fault if new is null
     if (new == NULL)
@@ -207,8 +208,8 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
     new->pid = pid;
 
     //Retrieve the pid_list pointer in order to add the new pid to the linked list
-    extract_topic_name(this_file, topic_name);
-    struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( topic_name);
+
+    struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
 
     if( this_topic_subscribe == NULL) return -EFAULT;
     struct list_head* this_list = this_topic_subscribe->pid_list;
