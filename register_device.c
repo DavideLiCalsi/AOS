@@ -121,11 +121,12 @@ void extract_topic_name(char* raw_path, char* topic_name){
     for(i=0; i<len && slash_count<4; i++){
 
         if (slash_count == 3 ){
-            topic_name[j]=topic_name[i] != '/' ? raw_path[i] : '\0';
+
+            topic_name[j] = raw_path[i] != '/' ? raw_path[i] : '\0';
             ++j;
         }
 
-        slash_count += 1 * (raw_path[i] == '/');
+        slash_count += (raw_path[i] == '/')? 1:0;
     }
 
 }
@@ -446,7 +447,7 @@ int add_new_topic(char* topic_name){
   		printk(KERN_INFO "Succesfully created special files\n");
 
     //Initialize the list of subscriber's PIDs
-    new_topic_subscribe->pid_list = kmalloc(sizeof(list_head), GFP_KERNEL);
+    new_topic_subscribe->pid_list = kmalloc(sizeof(struct list_head), GFP_KERNEL);
     INIT_LIST_HEAD(new_topic_subscribe->pid_list);
   	
   	subscribe_data[topics_count]=new_topic_subscribe;
