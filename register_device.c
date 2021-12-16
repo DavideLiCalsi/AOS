@@ -24,7 +24,7 @@ MODULE_LICENSE("GPL");
  the PIDs of the processes that subscribe to a topic*/
 struct pid_node{
     int pid;
-    struct list_head* list;
+    struct list_head list;
 };
 
 /*Utility struct containing all data related to a topic*/
@@ -199,7 +199,7 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 
     //Now create the struct pid_node to add the list of subscribers
     struct pid_node* new = pid >= 0 ? kmalloc(sizeof(struct pid_node), GFP_KERNEL): NULL;
-    new->list = kmalloc(sizeof(struct list_head), GFP_KERNEL);
+    //new->list = kmalloc(sizeof(struct list_head), GFP_KERNEL);
 
     //Fault if new is null
     if (new == NULL)
@@ -215,7 +215,7 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
     struct list_head* this_list = this_topic_subscribe->pid_list;
 
     //Perform the add
-    list_add_tail(new->list, this_list);
+    list_add_tail(&new->list, this_list);
 
     pr_info("Process %d has succesfully subscribed!\n", pid);
 
@@ -343,12 +343,13 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 		return -EFAULT;
 	}
 
-	struct list_head* pids = temp->pid_list, cursor;
+	struct list_head* pids = temp->pid_list;
+    struct list* cursor;
 
     list_for_each(cursor,pids){
 
         struct pid_node* sub_process = list_entry(cursor,struct pid_node,list);
-        pr_info("%d\n", pid_node->pid);
+        pr_info("%d\n", sub_process->pid);
     }
 
 
