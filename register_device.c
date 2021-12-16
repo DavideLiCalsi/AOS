@@ -24,7 +24,7 @@ MODULE_LICENSE("GPL");
  the PIDs of the processes that subscribe to a topic*/
 struct pid_node{
     unsigned int pid;
-    list_head* list;
+    struct list_head* list;
 };
 
 /*Utility struct containing all data related to a topic*/
@@ -98,7 +98,7 @@ int charbuf_to_int(char* buf){
         return -1;
 
     int i;
-    const int factor = 1;
+    int factor = 1;
 
     for(i=0;i<sizeof(int); ++i, factor*=256){
 
@@ -178,7 +178,7 @@ static ssize_t subscribe_read(struct file * filp, char* buffer, size_t size, lof
 static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
 
 	//Get the file name of this special file
-	char this_file[50], topic[50];
+	char this_file[50];
 	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
 	pr_info("Writing subscription file for topic %s\n", this_file);
@@ -205,6 +205,8 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
     if (new == NULL)
         return -EFAULT;
 
+    new->pid = pid;
+
     //Retrieve the pid_list pointer in order to add the new pid to the linked list
     struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( extract_topic_name(this_file));
 
@@ -212,9 +214,9 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
     struct list_head* this_list = this_topic_subscribe->pid_list;
 
     //Perform the add
-    list_add_tail(new, this_list);
+    list_add_tail(new->list, this_list);
 
-    pr_info("Process %d has succesfully subscribed!\n");
+    pr_info("Process %d has succesfully subscribed!\n", pid);
 
     return 0;
 }
