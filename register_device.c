@@ -109,27 +109,7 @@ int charbuf_to_int(char* buf){
 
 }
 
-/*Converts a path of a subscribe special file to its topic name, e.g.
- /dev/topics/topic_name/subscribe is converted to topic_name*/
-void extract_topic_name(char* raw_path, char* topic_name){
 
-    int i=0,j=0;
-
-    int len=strlen(raw_path);
-    short int slash_count = 0;
-
-    for(i=0; i<len && slash_count<4; i++){
-
-        if (slash_count == 3 ){
-
-            topic_name[j] = raw_path[i] != '/' ? raw_path[i] : '\0';
-            ++j;
-        }
-
-        slash_count += (raw_path[i] == '/')? 1:0;
-    }
-
-}
 
 /*##########################################################################################
 #   Functions to pass to struct file_operations to manage the subscribe special file(s)  #
@@ -183,22 +163,13 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 	pr_info("Writing subscription file for topic %s\n", this_file);
 
     //Create the struct pid_node to add to the list
-    char pid_buf[sizeof(int)];
-    long not_copied = copy_from_user(pid_buf, buffer, sizeof(int));
-    int pid;
+    int pid = current->pid;
 
     //First retrieve the pid of the process writing to this file
-    if(not_copied != 0){
-        pr_err("Could not read the entire pid from userspace, aborted\n");
-        return -EFAULT;
-    }
-    else{
-        pid = charbuf_to_int(pid_buf);
-        pr_info("Adding process %d to the list of subscribers\n", pid);
-    }
+
 
     //Now create the struct pid_node to add the list of subscribers
-    struct pid_node* new = pid >= 0 ? kmalloc(sizeof(struct pid_node), GFP_KERNEL): NULL;
+    struct pid_node* new = kmalloc(sizeof(struct pid_node), GFP_KERNEL);
     //new->list = kmalloc(sizeof(struct list_head), GFP_KERNEL);
 
     //Fault if new is null
@@ -267,7 +238,7 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	
 	error_count = copy_to_user(buffer, signal_as_string, size);
 	
-	pr_info("The signal received for topic %s is %s\n", this_file, signal_as_string);
+	pr_info("The signal received for topic %s is %d\n", this_file, signal_code);
 	
 	return 0;
 }
@@ -290,15 +261,14 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	
 	long not_copied;
 	char signal_as_string[5];
+    int signal_nr;
 	
 	not_copied = copy_from_user(signal_as_string, buffer, 1);
     signal_as_string[1]='\0';
+    signal_nr = (int) signal_as_string[0];
 	
-	pr_info("Provided signal code: %s\n", signal_as_string);
+	pr_info("Provided signal code: %d\n", signal_nr);
 	
-	//Convert the signal from string to int
-	long signal_nr;
-	kstrtol(signal_as_string,10,&signal_nr);
 	
     if( signal_nr <= MAX_SIG)
         temp->signal_nr = signal_nr;
