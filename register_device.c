@@ -124,7 +124,7 @@ int find_pid(struct list_head* pid_list, int pid){
 }
 
 /*Resets the topic buffer to 0*/
-void reset_topic_name(){
+void reset_topic_name(char* topic){
 
     int i;
 
@@ -263,15 +263,21 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	char signal_as_string[5] = "";
 	//sprintf(signal_as_string,"%d", signal_code);
     signal_as_string[0]=(char) signal_code;
+
+    if ( *offset != 1){
 	
-	//Copy it to buffer
-	int error_count = 0;
+        //Copy it to buffer
+        int error_count = 0;
 	
-	error_count = copy_to_user(buffer, signal_as_string, 1);
+        error_count = copy_to_user(buffer, signal_as_string, 1);
 	
-	pr_info("The signal received for topic %s is %d\n", this_file, signal_code);
-	
-	return size;
+        pr_info("The signal received for topic %s is %d\n", this_file, signal_code);
+        *offset =1;
+
+        return 1;
+    }
+    else
+        return 0;
 }
 
 static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
@@ -358,12 +364,19 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
         i++;
     }
 
-    long not_copied;
+    int chars_to_read = MIN(size, i);
 
-    not_copied = copy_to_user(buffer, subscribers, sizeof(int)*MIN(size, i) );
+    if ( chars_to_read != *offset){
 
+        long not_copied;
 
-    return sizeof(int)*MIN(size, i);
+        not_copied = copy_to_user(buffer, subscribers, sizeof(int)*chars_to_read );
+        *offset +=chars_to_read;
+
+        return sizeof(int)*chars_to_read;
+    }
+    else
+        return 0;
 }
 
 static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
@@ -547,6 +560,7 @@ static ssize_t newtopic_device_write(struct file * filp, const char* buffer, siz
 
     if (search_topic_subscribe(topic) == NULL ){
         add_new_topic(topic);
+        reset_topic_name(topic);
         return size;
     }
     else{
