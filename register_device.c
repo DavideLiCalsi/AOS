@@ -18,8 +18,9 @@
 #define MAX_SIG 30
 #define MAX_TOPIC_LEN 50
 #define MAX_SUBSCRIBERS 300
+#define MAX_TOPIC_NAME_LEN 20
 
-#define MAX(x,y) (x>=y? x:y)
+#define MIN(x,y) (x<=y? x:y)
 
 MODULE_LICENSE("GPL");
 
@@ -109,7 +110,9 @@ struct topic_subscribe* search_topic_subscribe(char* name){
  pid if the process was found, -1 otherwise*/
 int find_pid(struct list_head* pid_list, int pid){
 
-    list_for_each(cursor,pids){
+    struct list_head* cursor;
+
+    list_for_each(cursor,pid_list){
 
         struct pid_node* sub_process = list_entry(cursor,struct pid_node,list);
 
@@ -120,6 +123,15 @@ int find_pid(struct list_head* pid_list, int pid){
     return -1;
 }
 
+/*Resets the topic buffer to 0*/
+void reset_topic_name(){
+
+    int i;
+
+    for(i=0; i<MAX_TOPIC_NAME_LEN; ++i){
+        topic[i] = '\0';
+    }
+}
 
 
 /*##########################################################################################
@@ -348,10 +360,10 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 
     long not_copied;
 
-    not_copied = copy_to_user(buffer, subscribers, sizeof(int)*MAX(size, i) );
+    not_copied = copy_to_user(buffer, subscribers, sizeof(int)*MIN(size, i) );
 
 
-    return sizeof(int)*MAX(size, i);
+    return sizeof(int)*MIN(size, i);
 }
 
 static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
@@ -496,7 +508,7 @@ struct file_operations newtopic_fo = {
 };
 
 static int Major;
-static char topic[20];
+static char topic[MAX_TOPIC_NAME_LEN];
 static int open = 0;
 
 static int newtopic_device_open(struct inode * inode, struct file * filp){
