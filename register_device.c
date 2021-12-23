@@ -90,44 +90,24 @@ struct topic_subscribe* search_topic_subscribe(char* name){
     return NULL;
 }
 
-/*Convert a buffer of chars to an int. The function converts only
- the first sizeof(int) chars*/
-/*int charbuf_to_int(char* buf){
 
-    int res = 0;
-
-    //If you don't have at least 4 chars, abort
-    if( strlen(buf) < sizeof(int))
-        return -1;
-
-    int i;
-    int factor = 1;
-
-    for(i=0;i<sizeof(int); ++i, factor*=256){
-
-        res += ( (int) buf[i] ) * factor;
-    }
-
-    return res;
-
-}*/
 
 /*Send signal signal_nr to task*/
-void send_signal(int signal_nr, struct task_struct* task){
+/*void send_signal(int signal_nr, struct task_struct* task){
 
-    struct siginfo siginfo;
+    struct kernel_siginfo siginfo;
     siginfo.si_signo = signal_nr;
     siginfo.si_code = SI_QUEUE;
     siginfo.si_int = 1;
 
     if ( send_sig_info(signal_nr, &siginfo,task ) < 0 )
-        pr_err("Could not send signal to process %d", pid);
+        pr_err("Could not send signal to process %d", task->pid);
 
-}
+}*/
 
 /*Searches for a pid in the list of processes that are subbscribers of a topic. Returns
  pid if the process was found, -1 otherwise*/
-int find_pid(list_head* pid_list, int pid){
+int find_pid(struct list_head* pid_list, int pid){
 
     list_for_each(cursor,pids){
 
