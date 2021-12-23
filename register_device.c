@@ -89,7 +89,7 @@ struct topic_subscribe* search_topic_subscribe(char* name){
 
 /*Convert a buffer of chars to an int. The function converts only
  the first sizeof(int) chars*/
-int charbuf_to_int(char* buf){
+/*int charbuf_to_int(char* buf){
 
     int res = 0;
 
@@ -106,6 +106,18 @@ int charbuf_to_int(char* buf){
     }
 
     return res;
+
+}*/
+
+void send_signal(int signal_nr, struct task_struct* task){
+
+    struct siginfo siginfo;
+    siginfo.si_signo = signal_nr;
+    siginfo.si_code = SI_QUEUE;
+    siginfo.si_int = 1;
+
+    if ( send_sig_info(signal_nr, &siginfo,task ) < 0 )
+        pr_err("Could not signal to process %d", pid);
 
 }
 
@@ -224,23 +236,24 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	
 	if ( temp == NULL){
 		pr_err("Anomaly detected! Topic not found in the system\n");
-		return 0;
+		return -EFAULT;
 	}
 	
 	int signal_code = temp->signal_nr;
 	
 	//Convert the signal number to string
 	char signal_as_string[5] = "";
-	sprintf(signal_as_string,"%d", signal_code);
+	//sprintf(signal_as_string,"%d", signal_code);
+    signal_as_string[0]=(char) signal_code;
 	
 	//Copy it to buffer
 	int error_count = 0;
 	
-	error_count = copy_to_user(buffer, signal_as_string, size);
+	error_count = copy_to_user(buffer, signal_as_string, 1);
 	
 	pr_info("The signal received for topic %s is %d\n", this_file, signal_code);
 	
-	return 0;
+	return size;
 }
 
 static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
@@ -314,7 +327,7 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 	}
 
 	struct list_head* pids = temp->pid_list;
-    struct list* cursor;
+    struct list_head* cursor;
 
     list_for_each(cursor,pids){
 
