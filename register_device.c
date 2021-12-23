@@ -114,9 +114,11 @@ void send_signal(int signal_nr, int pid){
     info.si_signo = signal_nr;
     info.si_code = SI_QUEUE;
     info.si_int = 1;
+
+    struct task_struct* task = get_pid_task(find_get_pid(pid),PIDTYPE_PID),
     if (task != NULL) {
         printk(KERN_INFO "Sending signal to app\n");
-        if(send_sig_info(signal_nr, &info, pid) < 0) {
+        if(send_sig(signal_nr, task,1) < 0) {
             printk(KERN_INFO "Unable to send signal\n");
         }
     }
@@ -785,6 +787,7 @@ void cleanup_module(void){
   	device_destroy(cl, subscribe_data[i]->subscribe_dev);
     device_destroy(cl, subscribe_data[i]->signal_nr_dev);
     device_destroy(cl, subscribe_data[i]->subscribers_dev);
+    device_destroy(cl, subscribe_data[i]->endpoint_dev);
   }
   
   //Destroy the class AOS_PS_IPC
@@ -796,6 +799,7 @@ void cleanup_module(void){
   	cdev_del(&subscribe_data[j]->subscribe_cdev);
     cdev_del(&subscribe_data[j]->signal_nr_cdev);
     cdev_del(&subscribe_data[j]->subscribers_cdev);
+    cdev_del(&subscribe_data[j]->endpoint_cdev);
   }
   
   printk(KERN_INFO "Module succesfully removed\n");
