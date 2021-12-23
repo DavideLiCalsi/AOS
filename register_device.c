@@ -22,6 +22,7 @@
 #define MAX_MESSAGE_LEN 500
 
 #define MIN(x,y) (x<=y? x:y)
+#define MAX(x,y) (x>=y? x:y)
 
 MODULE_LICENSE("GPL");
 
@@ -103,17 +104,37 @@ struct topic_subscribe* search_topic_subscribe(char* name){
 
 
 /*Send signal signal_nr to task*/
-/*void send_signal(int signal_nr, struct task_struct* task){
+void send_signal(int signal_nr, int pid){
 
-    struct kernel_siginfo siginfo;
-    siginfo.si_signo = signal_nr;
-    siginfo.si_code = SI_QUEUE;
-    siginfo.si_int = 1;
+    struct siginfo info;
+    pr_info("Sending interrupt to task %d\n",current->pid);
 
-    if ( send_sig_info(signal_nr, &siginfo,task ) < 0 )
-        pr_err("Could not send signal to process %d", task->pid);
+    //Sending signal to app
+    memset(&info, 0, sizeof(struct siginfo));
+    info.si_signo = signal_nr;
+    info.si_code = SI_QUEUE;
+    info.si_int = 1;
+    if (task != NULL) {
+        printk(KERN_INFO "Sending signal to app\n");
+        if(send_sig_info(signal_nr, &info, pid) < 0) {
+            printk(KERN_INFO "Unable to send signal\n");
+        }
+    }
+}
 
-}*/
+void signal_subscribers(int signal_nr, struct list_head* pid_list){
+
+    struct list_head* cursor;
+
+    list_for_each(cursor,pid_list){
+
+        struct pid_node* sub_process = list_entry(cursor,struct pid_node,list);
+        send_signal(signal_nr, sub_process->pid);
+
+    }
+
+
+}
 
 /*Searches for a pid in the list of processes that are subbscribers of a topic. Returns
  pid if the process was found, -1 otherwise*/
@@ -133,11 +154,11 @@ int find_pid(struct list_head* pid_list, int pid){
 }
 
 /*Resets the topic buffer to 0*/
-void reset_topic_name(char* topic){
+void reset_string(char* topic, int len){
 
     int i;
 
-    for(i=0; i<MAX_TOPIC_NAME_LEN; ++i){
+    for(i=0; i<len; ++i){
         topic[i] = '\0';
     }
 }
@@ -239,7 +260,7 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
     //Abort if the list is already full
     if ( subscribers_count(this_list) == MAX_SUBSCRIBERS ){
         pr_err("Too many subscribers, subscription aborted\n");
-        return -EFAUL;
+        return -EFAULT;
     }
 
     //Once the previous checks were passed, the process can be added to the subscribers' list
@@ -426,7 +447,7 @@ static int endpoint_open(struct inode * inode, struct file * filp){
     return 0;
 }
 
-static int subscribers_release(struct inode * inode, struct file * filp){
+static int endpoint_release(struct inode * inode, struct file * filp){
     pr_info("Releasing endpoint file\n");
     return 0;
 }
@@ -469,7 +490,7 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
 
 }
 
-static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
+static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
 
     char this_file[50];
 	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
@@ -487,7 +508,9 @@ static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t 
 
 	int to_write = MIN(MAX_MESSAGE_LEN, size);
 
+    reset_string(temp->msg, MAX_MESSAGE_LEN);
     long not_copied = copy_from_user(temp->msg, buffer, to_write);
+    signal_subscribers(temp->signal_nr, temp->pid_list);
 
 
     return size;
@@ -543,9 +566,9 @@ int add_new_topic(char* topic_name){
     /*Buffer containing the path of the "subscribers" special file for the
 	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribers"*/
 	char topic_endpoint_path[60]="";
-	strcat(topic_subscribers_path, "/topics/");
-	strcat(topic_subscribers_path, topic_name);
-	strcat(topic_subscribers_path, "/endpoint");
+	strcat(topic_endpoint_path, "/topics/");
+	strcat(topic_endpoint_path, topic_name);
+	strcat(topic_endpoint_path, "/endpoint");
 	
 	/*Initialize the file operations structs*/
 	struct file_operations fo = {
@@ -589,7 +612,7 @@ int add_new_topic(char* topic_name){
   	if( (alloc_chrdev_region(&new_topic_subscribe->signal_nr_dev, 0, 1, topic_signal_path)) < 0 || 
   		(alloc_chrdev_region(&new_topic_subscribe->subscribe_dev, 0, 1, topic_subscribe_path)) < 0 ||
   		(alloc_chrdev_region(&new_topic_subscribe->subscribers_dev, 0, 1, topic_subscribers_path)) < 0 ||
-  		(alloc_chrdev_region(&new_topic_subscribe->subscribers_dev, 0, 1, topic_endpoint_path)) < 0){
+  		(alloc_chrdev_region(&new_topic_subscribe->endpoint_dev, 0, 1, topic_endpoint_path)) < 0){
   		
       		pr_err("Cannot allocate major numbers for devices\n");
       		return -1;
@@ -689,7 +712,7 @@ static ssize_t newtopic_device_write(struct file * filp, const char* buffer, siz
 
     if (search_topic_subscribe(topic) == NULL ){
         add_new_topic(topic);
-        reset_topic_name(topic);
+        reset_string(topic, MAX_TOPIC_NAME_LEN);
         return size;
     }
     else{
