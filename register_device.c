@@ -19,6 +19,7 @@
 #define MAX_TOPIC_LEN 50
 #define MAX_SUBSCRIBERS 300
 #define MAX_TOPIC_NAME_LEN 20
+#define MAX_MESSAGE_LEN 500
 
 #define MIN(x,y) (x<=y? x:y)
 
@@ -45,6 +46,10 @@ struct topic_subscribe{
 	//dev_t and cdev for the 'subscribers' file
 	dev_t subscribers_dev;
 	struct cdev subscribers_cdev;
+
+    //dev_t and cdev for the 'subscribers' file
+	dev_t endpoint_dev;
+	struct cdev endpoint_cdev;
 	
     //Index of this topic
 	int index;
@@ -56,6 +61,9 @@ struct topic_subscribe{
     //Topic name
 	char* name;
 
+    //Latest message content
+    char msg[MAX_MESSAGE_LEN];
+
     //subscribed PIDs list
     struct list_head* pid_list;
 
@@ -63,6 +71,7 @@ struct topic_subscribe{
 	struct file_operations subscribe_fo;
 	struct file_operations signal_nr_fo;
     struct file_operations subscribers_fo;
+    struct file_operations endpoint_fo;
 };
 
 static struct class* cl;
@@ -133,9 +142,22 @@ void reset_topic_name(char* topic){
     }
 }
 
+ int subscribers_count(struct list_head* pid_list){
+
+     int count=0;
+     struct list_head* cursor;
+
+     list_for_each(cursor,pid_list){
+
+        count++;
+    }
+
+    return count;
+ }
+
 
 /*##########################################################################################
-#   Functions to pass to struct file_operations to manage the subscribe special file(s)  #
+#   Functions to pass to struct file_operations to manage the subscribe special file(s)    #
 ###########################################################################################*/
 
 static int subscribe_open(struct inode * inode, struct file * filp);
@@ -200,7 +222,6 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
     new->pid = pid;
 
     //Retrieve the pid_list pointer in order to add the new pid to the linked list
-
     struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
 
     if( this_topic_subscribe == NULL) {
@@ -215,7 +236,13 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
         return -EFAULT;
     }
 
-    //Once the previous check was passed, the process can be added to the subscribers' list
+    //Abort if the list is already full
+    if ( subscribers_count(this_list) == MAX_SUBSCRIBERS ){
+        pr_err("Too many subscribers, subscription aborted\n");
+        return -EFAUL;
+    }
+
+    //Once the previous checks were passed, the process can be added to the subscribers' list
     list_add_tail(&new->list, this_list);
 
     pr_info("Process %d has succesfully subscribed!\n", pid);
@@ -385,6 +412,88 @@ static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t 
 }
 
 
+/*##########################################################################################
+#   Functions to pass to struct file_operations to manage the endpoint special file(s)     #
+###########################################################################################*/
+
+static int endpoint_open(struct inode * inode, struct file * filp);
+static int endpoint_release(struct inode * inode, struct file * filp);
+static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff_t * offset);
+static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t size, loff_t * offset);
+
+static int endpoint_open(struct inode * inode, struct file * filp){
+    pr_info("Opening endpoint file\n");
+    return 0;
+}
+
+static int subscribers_release(struct inode * inode, struct file * filp){
+    pr_info("Releasing endpoint file\n");
+    return 0;
+}
+
+static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff_t * offset){
+
+    char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
+
+    pr_info("Reading message for topic %s\n", this_file);
+
+    struct topic_subscribe* temp = NULL;
+
+    temp=search_topic_subscribe(this_file);
+
+    //If the topic does not exist or there is no subscribers list, signal anomaly
+	if ( temp == NULL || temp->pid_list == NULL){
+		pr_err("Anomaly detected! Topic not found in the system or list is not initialized\n");
+		return -EFAULT;
+	}
+
+	struct list_head* pids = temp->pid_list;
+
+    //If the reading process is not a suscriber to this topic, stop
+    if (find_pid(pids, current->pid) == -1){
+        pr_err("Process %d is not subscribed to %s\n", current->pid, this_file);
+        return 0;
+    }
+
+    //Perform the reading. to_read stores the characters that should be read
+    int to_read=MIN(size, MAX(MAX_MESSAGE_LEN - *offset,0) );
+
+    if (*offset != MAX_MESSAGE_LEN){
+        long not_copied=copy_to_user(buffer,temp->msg, to_read);
+        *offset += to_read;
+        return to_read;
+    }
+    else
+        return 0;
+
+}
+
+static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
+
+    char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
+    pr_info("Writing message for topic %s\n", this_file);
+
+    struct topic_subscribe* temp = NULL;
+
+    temp=search_topic_subscribe(this_file);
+
+    //If the topic does not exist, signal anomaly
+	if ( temp == NULL ){
+		pr_err("Anomaly detected! Topic not found in the system\n");
+		return -EFAULT;
+	}
+
+	int to_write = MIN(MAX_MESSAGE_LEN, size);
+
+    long not_copied = copy_from_user(temp->msg, buffer, to_write);
+
+
+    return size;
+}
+
+
 /*##################################################
 #       Function that registers a new topic        #
 ###################################################*/
@@ -430,6 +539,13 @@ int add_new_topic(char* topic_name){
 	strcat(topic_subscribers_path, "/topics/");
 	strcat(topic_subscribers_path, topic_name);
 	strcat(topic_subscribers_path, "/subscribers");
+
+    /*Buffer containing the path of the "subscribers" special file for the
+	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribers"*/
+	char topic_endpoint_path[60]="";
+	strcat(topic_subscribers_path, "/topics/");
+	strcat(topic_subscribers_path, topic_name);
+	strcat(topic_subscribers_path, "/endpoint");
 	
 	/*Initialize the file operations structs*/
 	struct file_operations fo = {
@@ -455,15 +571,25 @@ int add_new_topic(char* topic_name){
         .release=subscribers_release
     };
     new_topic_subscribe->subscribers_fo = subscribers_fo;
+
+    struct file_operations endpoint_fo = {
+        .read=endpoint_read,
+        .open=endpoint_open,
+        .write=endpoint_write,
+        .release=endpoint_release
+    };
+    new_topic_subscribe->endpoint_fo = endpoint_fo;
 	
 	/*Allocating Major number*/
   	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribe_path);
   	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_signal_path);
     pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribers_path);
+    pr_info("Trying to allocate a major and minor number for %s device file\n", topic_endpoint_path);
   
   	if( (alloc_chrdev_region(&new_topic_subscribe->signal_nr_dev, 0, 1, topic_signal_path)) < 0 || 
   		(alloc_chrdev_region(&new_topic_subscribe->subscribe_dev, 0, 1, topic_subscribe_path)) < 0 ||
-  		(alloc_chrdev_region(&new_topic_subscribe->subscribers_dev, 0, 1, topic_subscribers_path)) < 0){
+  		(alloc_chrdev_region(&new_topic_subscribe->subscribers_dev, 0, 1, topic_subscribers_path)) < 0 ||
+  		(alloc_chrdev_region(&new_topic_subscribe->subscribers_dev, 0, 1, topic_endpoint_path)) < 0){
   		
       		pr_err("Cannot allocate major numbers for devices\n");
       		return -1;
@@ -477,18 +603,21 @@ int add_new_topic(char* topic_name){
   	cdev_init(&new_topic_subscribe->subscribe_cdev, &new_topic_subscribe->subscribe_fo);
   	cdev_init(&new_topic_subscribe->signal_nr_cdev, &new_topic_subscribe->signal_nr_fo);
     cdev_init(&new_topic_subscribe->subscribers_cdev, &new_topic_subscribe->subscribers_fo);
+    cdev_init(&new_topic_subscribe->endpoint_cdev, &new_topic_subscribe->endpoint_fo);
   
   	//Add the special file to the system
   	if (cdev_add(&new_topic_subscribe->subscribe_cdev, new_topic_subscribe->subscribe_dev,1) < 0 ||
   		cdev_add(&new_topic_subscribe->signal_nr_cdev, new_topic_subscribe->signal_nr_dev,1) < 0  ||
-        cdev_add(&new_topic_subscribe->subscribers_cdev, new_topic_subscribe->subscribers_dev,1) < 0 )
+        cdev_add(&new_topic_subscribe->subscribers_cdev, new_topic_subscribe->subscribers_dev,1) < 0 ||
+        cdev_add(&new_topic_subscribe->endpoint_cdev, new_topic_subscribe->endpoint_dev,1) < 0 )
   		
   		pr_err("Could not add special files to system\n");
   	
   	//Create the special files subscribe and signal_nr
   	if ( device_create(cl, NULL, new_topic_subscribe->subscribe_dev, NULL, topic_subscribe_path) == NULL ||
   		device_create(cl, NULL, new_topic_subscribe->signal_nr_dev, NULL, topic_signal_path) == NULL ||
-        device_create(cl, NULL, new_topic_subscribe->subscribers_dev, NULL, topic_subscribers_path) == NULL ){
+        device_create(cl, NULL, new_topic_subscribe->subscribers_dev, NULL, topic_subscribers_path) == NULL ||
+        device_create(cl, NULL, new_topic_subscribe->endpoint_dev, NULL, topic_endpoint_path) == NULL ){
   		printk(KERN_ALERT "Could not create one of the special files\n");
   	}
   	else
@@ -550,7 +679,7 @@ static ssize_t newtopic_device_write(struct file * filp, const char* buffer, siz
 
   long not_copied;
 
-  not_copied = copy_from_user(topic, buffer, size);
+  not_copied = copy_from_user(topic, buffer, MIN(size, MAX_TOPIC_NAME_LEN - 1));
 
   printk(KERN_INFO "Writing to special file %s\n", NEWTOPIC_NAME);
 
