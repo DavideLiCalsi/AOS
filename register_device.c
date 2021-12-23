@@ -17,6 +17,9 @@
 #define MAX_TOPICS 100
 #define MAX_SIG 30
 #define MAX_TOPIC_LEN 50
+#define MAX_SUBSCRIBERS 300
+
+#define MAX(x,y) (x>=y? x:y)
 
 MODULE_LICENSE("GPL");
 
@@ -109,6 +112,7 @@ struct topic_subscribe* search_topic_subscribe(char* name){
 
 }*/
 
+/*Send signal signal_nr to task*/
 void send_signal(int signal_nr, struct task_struct* task){
 
     struct siginfo siginfo;
@@ -117,8 +121,23 @@ void send_signal(int signal_nr, struct task_struct* task){
     siginfo.si_int = 1;
 
     if ( send_sig_info(signal_nr, &siginfo,task ) < 0 )
-        pr_err("Could not signal to process %d", pid);
+        pr_err("Could not send signal to process %d", pid);
 
+}
+
+/*Searches for a pid in the list of processes that are subbscribers of a topic. Returns
+ pid if the process was found, -1 otherwise*/
+int find_pid(list_head* pid_list, int pid){
+
+    list_for_each(cursor,pids){
+
+        struct pid_node* sub_process = list_entry(cursor,struct pid_node,list);
+
+        if( sub_process->pid == pid )
+            return pid;
+    }
+
+    return -1;
 }
 
 
@@ -175,14 +194,12 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 	pr_info("Writing subscription file for topic %s\n", this_file);
 
     //Create the struct pid_node to add to the list
-    int pid = current->pid;
 
     //First retrieve the pid of the process writing to this file
-
+    int pid = current->pid;
 
     //Now create the struct pid_node to add the list of subscribers
     struct pid_node* new = kmalloc(sizeof(struct pid_node), GFP_KERNEL);
-    //new->list = kmalloc(sizeof(struct list_head), GFP_KERNEL);
 
     //Fault if new is null
     if (new == NULL)
@@ -194,10 +211,19 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 
     struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
 
-    if( this_topic_subscribe == NULL) return -EFAULT;
+    if( this_topic_subscribe == NULL) {
+        pr_err("Topic not found, subscription aborted\n");
+        return -EFAULT;
+    }
     struct list_head* this_list = this_topic_subscribe->pid_list;
 
-    //Perform the add
+    //Abort if the process is already subscribed to this topic
+    if ( find_pid(this_list, pid) != -1){
+        pr_err("Process is already a subscriber, subscription aborted\n");
+        return -EFAULT;
+    }
+
+    //Once the previous check was passed, the process can be added to the subscribers' list
     list_add_tail(&new->list, this_list);
 
     pr_info("Process %d has succesfully subscribed!\n", pid);
@@ -283,10 +309,10 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	pr_info("Provided signal code: %d\n", signal_nr);
 	
 	
-    if( signal_nr <= MAX_SIG)
+    if( signal_nr <= MAX_SIG || signal_nr < 0)
         temp->signal_nr = signal_nr;
     else
-        pr_err("Signal number is too high. Overwriting denied. \n");
+        pr_err("Invalid signal number. Overwriting denied. \n");
 	
 	return size;
 }
@@ -329,14 +355,23 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 	struct list_head* pids = temp->pid_list;
     struct list_head* cursor;
 
+    int subscribers[MAX_SUBSCRIBERS];
+    int i=0;
+
     list_for_each(cursor,pids){
 
         struct pid_node* sub_process = list_entry(cursor,struct pid_node,list);
         pr_info("%d\n", sub_process->pid);
+        subscribers[i]=sub_process->pid;
+        i++;
     }
 
+    long not_copied;
 
-    return 0;
+    not_copied = copy_to_user(buffer, subscribers, sizeof(int)*MAX(size, i) );
+
+
+    return sizeof(int)*MAX(size, i);
 }
 
 static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
@@ -517,8 +552,15 @@ static ssize_t newtopic_device_write(struct file * filp, const char* buffer, siz
   if (not_copied == 0){
 
     printk(KERN_INFO "New topic request: %s", topic);
-    add_new_topic(topic);
-    return size;
+
+    if (search_topic_subscribe(topic) == NULL ){
+        add_new_topic(topic);
+        return size;
+    }
+    else{
+        pr_err("Topic already exists. Creation failed\n");
+        return size;
+    }
   }
   else
     return -EFAULT;
