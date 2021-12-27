@@ -187,7 +187,7 @@ void reset_string(char* topic, int len){
  }
 
  /*Allocates major and minor numbers for the character special files required by each topic*/
- int allocate_chrdev(struct topic_subscribe* new_topic_subscribe, char* topic_subscribe_path, char* topic_signal_path, char* topic_endpoint_path ){
+ int allocate_chrdev(struct topic_subscribe* new_topic_subscribe, char* topic_subscribe_path,  char* topic_signal_path,char* topic_subscribers_path, char* topic_endpoint_path ){
 
      /*Allocating Major number*/
   	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribe_path);
@@ -227,7 +227,7 @@ void reset_string(char* topic, int len){
   		pr_err("Could not add special files to system\n");
  }
 
- void create_devices(struct topic_subscribe* new_topic_subscribe, char* topic_subscribe_path, char* topic_signal_path, char* topic_endpoint_path ){
+ void create_devices(struct topic_subscribe* new_topic_subscribe, char* topic_subscribe_path, char* topic_signal_path, char* topic_subscribe_path, char* topic_endpoint_path ){
 
      //Create the special files subscribe and signal_nr
   	if ( device_create(cl, NULL, new_topic_subscribe->subscribe_dev, NULL, topic_subscribe_path) == NULL ||
@@ -428,7 +428,7 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 		return 0;
 	}
 
-	write_lock(temp->signal_nr_lock);
+	write_lock(&temp->signal_nr_lock);
 	
 	long not_copied;
 	char signal_as_string[5];
