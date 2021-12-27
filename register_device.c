@@ -216,7 +216,7 @@ void reset_string(char* topic, int len){
     cdev_init(&new_topic_subscribe->endpoint_cdev, &new_topic_subscribe->endpoint_fo);
  }
 
- void add_cdevs(struc topic_subscribe* new_topic_subscribe){
+ void add_cdevs(struct topic_subscribe* new_topic_subscribe){
 
      //Add the special file to the system
   	if (cdev_add(&new_topic_subscribe->subscribe_cdev, new_topic_subscribe->subscribe_dev,1) < 0 ||
@@ -227,7 +227,7 @@ void reset_string(char* topic, int len){
   		pr_err("Could not add special files to system\n");
  }
 
- void create_devices(struct topic_subscribe* new_topic_subscribe, char* topic_subscribe_path, char* topic_signal_path, char* topic_subscribe_path, char* topic_endpoint_path ){
+ void create_devices(struct topic_subscribe* new_topic_subscribe, char* topic_subscribe_path, char* topic_signal_path, char* topic_subscribers_path, char* topic_endpoint_path ){
 
      //Create the special files subscribe and signal_nr
   	if ( device_create(cl, NULL, new_topic_subscribe->subscribe_dev, NULL, topic_subscribe_path) == NULL ||
