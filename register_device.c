@@ -134,6 +134,11 @@ void send_signal(int signal_nr, int pid){
 
 void signal_subscribers(int signal_nr, struct list_head* pid_list){
 
+    if (signal_nr <= 0){
+        pr_err("Invalid signal code, please specify a valid one\n");
+        return;
+    }
+
     struct list_head* cursor;
 
     list_for_each(cursor,pid_list){
@@ -503,12 +508,14 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
     int subscribers[MAX_SUBSCRIBERS];
     int i=0;
 
-    list_for_each(cursor,pids){
+    if (*offset ==0) {
+        list_for_each(cursor,pids){
 
-        struct pid_node* sub_process = list_entry(cursor,struct pid_node,list);
-        pr_info("%d\n", sub_process->pid);
-        subscribers[i]=sub_process->pid;
-        i++;
+            struct pid_node* sub_process = list_entry(cursor,struct pid_node,list);
+            pr_info("%d\n", sub_process->pid);
+            subscribers[i]=sub_process->pid;
+            i++;
+        }
     }
 
     int chars_to_read = MIN(size, i);
@@ -618,16 +625,18 @@ static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t siz
 		return -EFAULT;
 	}
 
-
+    //The number of bytes to write
 	int to_write = MIN(MAX_MESSAGE_LEN, size);
+
 
     write_lock(&temp->endpoint_lock);
 
     reset_string(temp->msg, MAX_MESSAGE_LEN);
     long not_copied = copy_from_user(temp->msg, buffer, to_write);
-    signal_subscribers(temp->signal_nr, temp->pid_list);
 
     write_unlock(&temp->endpoint_lock);
+
+    signal_subscribers(temp->signal_nr, temp->pid_list);
 
 
     return size;
