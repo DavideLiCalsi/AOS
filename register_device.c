@@ -581,7 +581,7 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
 
     //Acquire the read lock only if you are starting to read from the file
     if (*offset == 0)
-        read_lock(temp->endpoint_lock);
+        read_lock(&temp->endpoint_lock);
 
     //Perform the reading. to_read stores the number of characters that should be read
     int to_read=MIN(size, MAX(MAX_MESSAGE_LEN - *offset,0) );
@@ -596,7 +596,7 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
     else{
 
         //If you have finished, unlock and return
-        read_unlock(temp->endpoint);
+        read_unlock(&temp->endpoint_lock);
         return 0;
     }
 
