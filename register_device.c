@@ -384,7 +384,7 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 		return -EFAULT;
 	}
 
-	read_lock(&temp->signal_nr_lock);
+
 	
 	int signal_code = temp->signal_nr;
 	
@@ -392,6 +392,9 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	char signal_as_string[5] = "";
 	//sprintf(signal_as_string,"%d", signal_code);
     signal_as_string[0]=(char) signal_code;
+
+    if (*offset == 0)
+        read_lock(&temp->signal_nr_lock);
 
     if ( *offset != 1){
 	
@@ -428,11 +431,13 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 		return 0;
 	}
 
-	write_lock(&temp->signal_nr_lock);
+
 	
 	long not_copied;
 	char signal_as_string[5];
     int signal_nr;
+
+    write_lock(&temp->signal_nr_lock);
 	
 	not_copied = copy_from_user(signal_as_string, buffer, 1);
     signal_as_string[1]='\0';
@@ -441,8 +446,10 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	pr_info("Provided signal code: %d\n", signal_nr);
 	
 	
-    if( signal_nr <= MAX_SIG || signal_nr < 0)
+    if( signal_nr <= MAX_SIG || signal_nr < 0){
         temp->signal_nr = signal_nr;
+        pr_info("Signal code succesfully updated!\n");
+    }
     else
         pr_err("Invalid signal number. Overwriting denied. \n");
 
@@ -486,7 +493,9 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 		return -EFAULT;
 	}
 
-	read_lock(&temp->subscribe_lock);
+
+	if (*offset==0)
+        read_lock(&temp->subscribe_lock);
 
 	struct list_head* pids = temp->pid_list;
     struct list_head* cursor;
@@ -570,16 +579,26 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
         return 0;
     }
 
-    //Perform the reading. to_read stores the characters that should be read
+    //Acquire the read lock only if you are starting to read from the file
+    if (*offset == 0)
+        read_lock(temp->endpoint_lock);
+
+    //Perform the reading. to_read stores the number of characters that should be read
     int to_read=MIN(size, MAX(MAX_MESSAGE_LEN - *offset,0) );
 
     if (*offset != MAX_MESSAGE_LEN){
+
+        //Keep on reading if you have not finished
         long not_copied=copy_to_user(buffer,temp->msg, to_read);
         *offset += to_read;
         return to_read;
     }
-    else
+    else{
+
+        //If you have finished, unlock and return
+        read_unlock(temp->endpoint);
         return 0;
+    }
 
 }
 
@@ -599,11 +618,16 @@ static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t siz
 		return -EFAULT;
 	}
 
+
 	int to_write = MIN(MAX_MESSAGE_LEN, size);
+
+    write_lock(&temp->endpoint_lock);
 
     reset_string(temp->msg, MAX_MESSAGE_LEN);
     long not_copied = copy_from_user(temp->msg, buffer, to_write);
     signal_subscribers(temp->signal_nr, temp->pid_list);
+
+    write_unlock(&temp->endpoint_lock);
 
 
     return size;
@@ -637,29 +661,25 @@ int add_new_topic(char* topic_name){
 		
 	/*Buffer containing the path of the "subscribe" special file for the
 	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribe"*/
-	char topic_subscribe_path[60]="";
-	strcat(topic_subscribe_path, "/topics/");
+	char topic_subscribe_path[60]="/topics/";
 	strcat(topic_subscribe_path, topic_name);
 	strcat(topic_subscribe_path, "/subscribe");
 	
 	/*Buffer containing the path of the "signal_nr" special file for the
 	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/signal_nr"*/
-	char topic_signal_path[60]="";
-	strcat(topic_signal_path, "/topics/");
+	char topic_signal_path[60]="/topics/";
 	strcat(topic_signal_path, topic_name);
 	strcat(topic_signal_path, "/signal_nr");
 
     /*Buffer containing the path of the "subscribers" special file for the
 	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribers"*/
-	char topic_subscribers_path[60]="";
-	strcat(topic_subscribers_path, "/topics/");
+	char topic_subscribers_path[60]="/topics/";
 	strcat(topic_subscribers_path, topic_name);
 	strcat(topic_subscribers_path, "/subscribers");
 
     /*Buffer containing the path of the "subscribers" special file for the
 	requested topic, e.g if topic_name = "news", topic_subscribe="/dev/topics/news/subscribers"*/
-	char topic_endpoint_path[60]="";
-	strcat(topic_endpoint_path, "/topics/");
+	char topic_endpoint_path[60]="/topics/";
 	strcat(topic_endpoint_path, topic_name);
 	strcat(topic_endpoint_path, "/endpoint");
 	
@@ -697,19 +717,6 @@ int add_new_topic(char* topic_name){
     new_topic_subscribe->endpoint_fo = endpoint_fo;
 	
 	/*Allocating Major number*/
-  	/*pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribe_path);
-  	pr_info("Trying to allocate a major and minor number for %s device file\n", topic_signal_path);
-    pr_info("Trying to allocate a major and minor number for %s device file\n", topic_subscribers_path);
-    pr_info("Trying to allocate a major and minor number for %s device file\n", topic_endpoint_path);
-  
-  	if( (alloc_chrdev_region(&new_topic_subscribe->signal_nr_dev, 0, 1, topic_signal_path)) < 0 || 
-  		(alloc_chrdev_region(&new_topic_subscribe->subscribe_dev, 0, 1, topic_subscribe_path)) < 0 ||
-  		(alloc_chrdev_region(&new_topic_subscribe->subscribers_dev, 0, 1, topic_subscribers_path)) < 0 ||
-  		(alloc_chrdev_region(&new_topic_subscribe->endpoint_dev, 0, 1, topic_endpoint_path)) < 0){
-  		
-      		pr_err("Cannot allocate major numbers for devices\n");
-      		return -1;
-  	}*/
 
     allocate_chrdev(new_topic_subscribe, topic_subscribe_path, topic_signal_path, topic_subscribers_path, topic_endpoint_path);
 
@@ -718,30 +725,14 @@ int add_new_topic(char* topic_name){
     pr_info("%s: Obtained Major = %d Minor = %d \n",topic_subscribers_path, MAJOR(new_topic_subscribe->subscribers_dev), MINOR(new_topic_subscribe->subscribers_dev));
   
   	//Initialize the cdev structure
-  	/*cdev_init(&new_topic_subscribe->subscribe_cdev, &new_topic_subscribe->subscribe_fo);
-  	cdev_init(&new_topic_subscribe->signal_nr_cdev, &new_topic_subscribe->signal_nr_fo);
-    cdev_init(&new_topic_subscribe->subscribers_cdev, &new_topic_subscribe->subscribers_fo);
-    cdev_init(&new_topic_subscribe->endpoint_cdev, &new_topic_subscribe->endpoint_fo);*/
+
     init_chrdev(new_topic_subscribe);
   
   	//Add the special file to the system
-  	/*if (cdev_add(&new_topic_subscribe->subscribe_cdev, new_topic_subscribe->subscribe_dev,1) < 0 ||
-  		cdev_add(&new_topic_subscribe->signal_nr_cdev, new_topic_subscribe->signal_nr_dev,1) < 0  ||
-        cdev_add(&new_topic_subscribe->subscribers_cdev, new_topic_subscribe->subscribers_dev,1) < 0 ||
-        cdev_add(&new_topic_subscribe->endpoint_cdev, new_topic_subscribe->endpoint_dev,1) < 0 )
-  		
-  		pr_err("Could not add special files to system\n");*/
+
     add_cdevs(new_topic_subscribe);
   	
   	//Create the special files subscribe and signal_nr
-  	/*if ( device_create(cl, NULL, new_topic_subscribe->subscribe_dev, NULL, topic_subscribe_path) == NULL ||
-  		device_create(cl, NULL, new_topic_subscribe->signal_nr_dev, NULL, topic_signal_path) == NULL ||
-        device_create(cl, NULL, new_topic_subscribe->subscribers_dev, NULL, topic_subscribers_path) == NULL ||
-        device_create(cl, NULL, new_topic_subscribe->endpoint_dev, NULL, topic_endpoint_path) == NULL ){
-  		printk(KERN_ALERT "Could not create one of the special files\n");
-  	}
-  	else
-  		printk(KERN_INFO "Succesfully created special files\n");*/
 
     create_devices(new_topic_subscribe, topic_subscribe_path, topic_signal_path, topic_subscribers_path, topic_endpoint_path);
 
@@ -750,10 +741,7 @@ int add_new_topic(char* topic_name){
     INIT_LIST_HEAD(new_topic_subscribe->pid_list);
 
     //Initialize locks
-   /* new_topic_subscribe->subscribe_lock =  __RW_LOCK_UNLOCKED(new_topic_subscribe->subscribe_lock);
-    new_topic_subscribe->signal_nr_lock =  __RW_LOCK_UNLOCKED(new_topic_subscribe->signal_nr_lock);
-    new_topic_subscribe->endpoint_lock =  __RW_LOCK_UNLOCKED(new_topic_subscribe->endpoint_lock);*/
-   init_locks(new_topic_subscribe);
+    init_locks(new_topic_subscribe);
   	
   	subscribe_data[topics_count]=new_topic_subscribe;
   	
