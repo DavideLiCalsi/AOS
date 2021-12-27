@@ -2,15 +2,17 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <string.h>
 
 
 #define SUBSCRIBE "/dev/topics/prova/subscribe"
 #define SIGNAL "/dev/topics/prova/signal_nr"
-#define SIGNUM 12
+#define SIGNUM 9
 
 void handle_sig(int sig_num){
 
-    printf("Received signal %d", sig_num);
+    printf("Received signal %d\n", sig_num);
 }
 
 void subscribe(){
@@ -28,18 +30,19 @@ void subscribe(){
 
 int main(){
 
-    struct sig_action my_action;
+    struct sigaction my_action;
+    memset(&my_action, 0, sizeof(my_action));
     my_action.sa_handler = &handle_sig;
-    my_action.sa_sigaction=NULL;
-    my_action.sa_mask=0;
-    my_action.sa_flags = 0;
-    my_action.sa_restorer=NULL;
+
 
     subscribe();
-    if ( sigaction(SIGNUM,&my_action, NULL) != 0) return;
+    puts("Subscribed to topic\n");
+    if ( sigaction(SIGNUM,&my_action, NULL) != 0) return -1;
+    puts("Registered new action handler\n");
 
     while (1){
         sleep(1);
     }
 
+    return 0;
 }

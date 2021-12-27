@@ -9,13 +9,15 @@
 #include <linux/slab.h>
 
 #include <linux/list.h>
+#include <linux/rwlocks.h>
+#include <linux/rwlock_types.h>
 
 #include <asm/uaccess.h>
 
 #define FILE_CLASS "AOS_PS_IPC"
 #define NEWTOPIC_NAME "newtopic"
 #define MAX_TOPICS 100
-#define MAX_SIG 30
+#define MAX_SIG 64
 #define MAX_TOPIC_LEN 50
 #define MAX_SUBSCRIBERS 300
 #define MAX_TOPIC_NAME_LEN 20
@@ -25,6 +27,7 @@
 #define MAX(x,y) (x>=y? x:y)
 
 MODULE_LICENSE("GPL");
+
 
 /*Utility struct to implement a list of integers. It will store
  the PIDs of the processes that subscribe to a topic*/
@@ -73,6 +76,9 @@ struct topic_subscribe{
 	struct file_operations signal_nr_fo;
     struct file_operations subscribers_fo;
     struct file_operations endpoint_fo;
+
+    //Locks
+    rwlock_t subscribe_lock;
 };
 
 static struct class* cl;
@@ -115,7 +121,7 @@ void send_signal(int signal_nr, int pid){
     info.si_code = SI_QUEUE;
     info.si_int = 1;
 
-    struct task_struct* task = get_pid_task(find_get_pid(pid),PIDTYPE_PID),
+    struct task_struct* task = get_pid_task(find_get_pid(pid),PIDTYPE_PID);
     if (task != NULL) {
         printk(KERN_INFO "Sending signal to app\n");
         if(send_sig(signal_nr, task,1) < 0) {
@@ -195,6 +201,10 @@ static int subscribe_open(struct inode * inode, struct file * filp){
 	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
 	pr_info("Opening subscription file for topic %s\n", this_file);
+
+    struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
+
+    write_lock(&(this_topic_subscribe->subscribe_lock) );
 	
 	return 0;
 }
@@ -207,6 +217,10 @@ static int subscribe_release(struct inode * inode, struct file * filp){
 	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
 	pr_info("Releasing subscription file for topic %s\n", this_file);
+
+    struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
+
+    write_unlock( &(this_topic_subscribe->subscribe_lock) );
 	
 	return 0;
 }
@@ -651,6 +665,9 @@ int add_new_topic(char* topic_name){
     //Initialize the list of subscriber's PIDs
     new_topic_subscribe->pid_list = kmalloc(sizeof(struct list_head), GFP_KERNEL);
     INIT_LIST_HEAD(new_topic_subscribe->pid_list);
+
+    //Initialize locks
+    new_topic_subscribe->subscribe_lock =  __RW_LOCK_UNLOCKED(new_topic_subscribe->subscribe_lock);
   	
   	subscribe_data[topics_count]=new_topic_subscribe;
   	
