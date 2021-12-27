@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 
 #include <linux/list.h>
-#include <linux/rwlocks.h>
+#include <linux/rwlock.h>
 #include <linux/rwlock_types.h>
 
 #include <asm/uaccess.h>
@@ -79,6 +79,7 @@ struct topic_subscribe{
 
     //Locks
     rwlock_t subscribe_lock;
+    rwlock_t signal_nr_lock;
 };
 
 static struct class* cl;
@@ -315,11 +316,14 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	struct topic_subscribe* temp = NULL;
 
 	temp=search_topic_subscribe(this_file);
+
 	
 	if ( temp == NULL){
 		pr_err("Anomaly detected! Topic not found in the system\n");
 		return -EFAULT;
 	}
+
+	read_lock(temp->signal_nr_lock);
 	
 	int signal_code = temp->signal_nr;
 	
@@ -340,8 +344,10 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 
         return 1;
     }
-    else
+    else{
+        read_unlock(temp->signal_nr_lock);
         return 0;
+    }
 }
 
 static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
@@ -355,10 +361,13 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	
     temp=search_topic_subscribe(this_file);
 
+
 	if ( temp == NULL){
 		pr_err("Anomaly detected! Topic not found in the system\n");
 		return 0;
 	}
+
+	write_lock(temp->signal_nr_lock);
 	
 	long not_copied;
 	char signal_as_string[5];
@@ -375,6 +384,8 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
         temp->signal_nr = signal_nr;
     else
         pr_err("Invalid signal number. Overwriting denied. \n");
+
+    write_unlock(temp->signal_nr_lock);
 	
 	return size;
 }
@@ -414,6 +425,8 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 		return -EFAULT;
 	}
 
+	read_lock(temp->subscribe_lock);
+
 	struct list_head* pids = temp->pid_list;
     struct list_head* cursor;
 
@@ -439,8 +452,11 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 
         return sizeof(int)*chars_to_read;
     }
-    else
+    else{
+
+        read_unlock(temp->subscribe_lock);
         return 0;
+    }
 }
 
 static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t size, loff_t * offset){
@@ -668,6 +684,7 @@ int add_new_topic(char* topic_name){
 
     //Initialize locks
     new_topic_subscribe->subscribe_lock =  __RW_LOCK_UNLOCKED(new_topic_subscribe->subscribe_lock);
+    new_topic_subscribe->signal_nr_lock =  __RW_LOCK_UNLOCKED(new_topic_subscribe->signal_nr_lock);
   	
   	subscribe_data[topics_count]=new_topic_subscribe;
   	
