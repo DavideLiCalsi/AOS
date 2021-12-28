@@ -1,0 +1,603 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\begin_preamble
+
+\usepackage[english]{babel}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+
+
+
+
+\author{P. Rossi}
+\date{\today}
+\title{Project name}
+\end_preamble
+\options a4
+\use_default_options false
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding utf8x
+\fontencoding T1
+\font_roman "default" "default"
+\font_sans "helvet" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family sfdefault
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize 10
+\spacing single
+\use_hyperref true
+\pdf_bookmarks false
+\pdf_bookmarksnumbered false
+\pdf_bookmarksopen false
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks false
+\pdf_pdfborder false
+\pdf_colorlinks false
+\pdf_backref section
+\pdf_pdfusetitle false
+\papersize default
+\use_geometry true
+\use_package amsmath 2
+\use_package amssymb 0
+\use_package cancel 0
+\use_package esint 1
+\use_package mathdots 0
+\use_package mathtools 0
+\use_package mhchem 0
+\use_package stackrel 0
+\use_package stmaryrd 0
+\use_package undertilde 0
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Standard
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+maketitle
+\end_layout
+
+\end_inset
+
+ 
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+NOTE: IT IS MANDATORY TO FILL IN ALL THE SECTIONS AND SUBSECTIONS IN THIS
+ TEMPLATE 
+\end_layout
+
+\begin_layout Section
+Project data
+\end_layout
+
+\begin_layout Itemize
+Project supervisor(s): Federico Reghenzani
+\end_layout
+
+\begin_layout Itemize
+Describe in this table the group that is delivering this project:
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="2" columns="3">
+<features tabularvalignment="middle">
+<column alignment="left" valignment="top">
+<column alignment="left" valignment="top">
+<column alignment="left" valignment="top">
+<row>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Last and first name 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Person code 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Email address
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Davide Li Calsi 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+10613807
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+davide.li@mail.polimi.it 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Describe here how development tasks have been subdivided among members of
+ the group, e.g.:
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Being the only member of the group, I did everything myself.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Links to the project source code; Put here, if available, links to public
+ repos hosting your project: https://github.com/DavideLiCalsi/AOS
+\end_layout
+
+\begin_layout Section
+Project description
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+2 pages max please
+\end_layout
+
+\begin_layout Itemize
+What is your project about? 
+\end_layout
+
+\begin_layout Itemize
+Why it is important for the AOS course? 
+\end_layout
+
+\begin_layout Standard
+For those who choose to work on an open source project, please put here
+ any reference/copy of messages exchanged with project maintainers to 
+\series bold
+identify the subject of the pull request
+\series default
+.
+\end_layout
+
+\begin_layout Standard
+My project was about the im plementation of a Publish/Subscribe inter-process
+ communication mechanism in Linux.
+ The idea was the implementation of a Linux kernel module for that specific
+ purpose.
+ Processes should be able to create a new topic by writing its name to a
+ special character file /dev/newtopic.
+ Once a topic has been created, processes can specify a signal code for
+ that topic and/or subscribe to it and/or publish a message for that topic.
+ Whenever new content is published, the subscribers receive a signal of
+ the same type as the one stored in /dev/topics/<topic_name>/signal_nr.
+\end_layout
+
+\begin_layout Standard
+The project is revelant for the AOS course because it consists in writing
+ a Linux kernel module, i.e.
+ you are expanding your OS by adding new functionalities.
+ It was a chance to write some code that executes in priviliged mode, which
+ (I learned the hard way) requires a lot of attention.
+ Furthermore, while working on the project I had to apply several concepts
+ seen during lectures such as kernel memory allocation or kernel synchronization
+, dealing with a lot of data strucures mentioned in the course.
+ Moreover, I had the chance to actually implement some character device
+ drivers.
+\end_layout
+
+\begin_layout Subsection
+Design and implementation
+\end_layout
+
+\begin_layout Standard
+Describe here the structure of the solution you devised.
+ Note, don't put major parts of the source code here; if you can, put hyperlinks
+ to existing repos.
+\end_layout
+
+\begin_layout Standard
+For those who choose to work on an open source project, please put here
+ an history (mail messages/github issues etc..) of the interaction with the
+ development team that helped you identify such design and the code reviews
+ that helped you improve it.
+\end_layout
+
+\begin_layout Standard
+Those that have chosen to present a paper can exclude this section.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+IMPLEMENTATION
+\end_layout
+
+\begin_layout Standard
+The core structure was suggested to me by my supervisor.
+ First, my module creates the character driver /dev/newtopic.
+ A process can simply write a string to it to register a new topic.
+ This triggers the add_new_topic(char*) function, which registers the topic
+ by creating the struct topic_subscribe.
+ This struct contains all key information related to the new topic.
+ Furthermore, add_new_topic creates 4 more character drivers under the folder
+ /dev/topics/<topic_name>:
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+subscribe: 
+\series default
+any process that wishes to subscribe to a topic simply needs to write any
+ string to it
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+signal_nr: 
+\series default
+special file used to set or retrieve the signal that the system should send
+ to the topic's subscribers
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+subscribers: 
+\series default
+contains a list of pids, one for each task that subscribed to the topic
+\end_layout
+
+\begin_layout Itemize
+
+\series bold
+endpoint:
+\series default
+ write to it to publish new content, read from it to retrieve the latest
+ content
+\end_layout
+
+\begin_layout Standard
+For each of these files, I wrote 4 functions that are called when specific
+ operations are executed on the file: one for file opening, one for file
+ reading, one for file writing, and finally one for file releasing.
+ They were all register as fields of the appropriate struct file_operations,
+ stored in the struct topic_subscribe.
+\end_layout
+
+\begin_layout Standard
+For the purpose of storing the pids of each topic's subscribers I used the
+ pre-implemented struct list_head (
+\begin_inset CommandInset href
+LatexCommand href
+name "list_head source code"
+target "https://github.com/torvalds/linux/blob/master/include/linux/list.h"
+literal "false"
+
+\end_inset
+
+), since it provided a flexible, easy-to-use and bug-free implementation
+ of bidirectional linked lists.
+ The list of subcribers is also stored in the struct topic_subscribe.
+\end_layout
+
+\begin_layout Standard
+The module was also designed to prevent the most common errors (though some
+ less evident bugs might still be present of course).
+ e.g it is impossible to create two topics with the same name, to subscribe
+ twice to the same topic...
+\end_layout
+
+\begin_layout Standard
+Finally, the head of the source file defines some macros that limit some
+ quantity in the module.
+ For instance MAX_SUBSCRIBERS is the maximum number of subscribers that
+ can subscribe to a topic.
+ These macros can and should be appropriately tuned, according to the real-life
+ scenario in which we plan to adopt the IPC mechanism.
+\end_layout
+
+\begin_layout Standard
+As for locking, I used two different mechanisms.
+ To regulate concurrent access to the list of subscribers, I used read/write
+ spinlocks (
+\begin_inset CommandInset href
+LatexCommand href
+name "rwlock.h"
+target "https://github.com/torvalds/linux/blob/master/include/linux/rwlock.h"
+literal "false"
+
+\end_inset
+
+), because the module naturally has a good read/write pattern when it comes
+ to accessing that data structure.
+ Infact whenever a task accesses the subscribe file it meaans (and can only)
+ write the list of subscribers.
+ Also, if the same data structure is accessed from the subscribers file,
+ or after a write to the endpoint file, someone must be trying to read the
+ full list.
+ Thus I decided to use rwlocks in order to allow for a higher degree of
+ concurrency, since many readers are allowe to read at once (and I assume
+ subscriptions will less frequent than reads).
+\end_layout
+
+\begin_layout Standard
+On the other hand, I used regular spinlocks to lock the signal number field
+ and the message buffer of each topic.
+\end_layout
+
+\begin_layout Section
+Project outcomes
+\end_layout
+
+\begin_layout Subsection
+Concrete outcomes
+\end_layout
+
+\begin_layout Standard
+Describe the artifacts you've produced, if possible by linking to repo commits.
+ For those who choose to work on an open source project, please put here
+ the 
+\series bold
+URL to your final pull request
+\series default
+.
+\end_layout
+
+\begin_layout Standard
+Those that have chosen to present a paper can include a link to the slides.
+\end_layout
+
+\begin_layout Standard
+I created a linux kernel module source file that you can compile to obtain
+ a functional kernel module for inter-process communication using Publish/Subscr
+ibe.
+\end_layout
+
+\begin_layout Subsection
+Learning outcomes
+\end_layout
+
+\begin_layout Standard
+What was the most important thing all the members have learned while developing
+ this part of the project, what questions remained unanswered, how you will
+ use what you've learned in your everyday life? Please also indicate which
+ tools you learned to use.
+\end_layout
+
+\begin_layout Standard
+Examples:
+\end_layout
+
+\begin_layout Itemize
+Foo learned to write multithreaded applications, he's probably going to
+ create his own startup with what she has learned.
+ She also learned how to debug with gdb.
+ 
+\end_layout
+
+\begin_layout Itemize
+Bar learned how to interact with the open source community, politely answering
+ to code reviews and issuing pull requests through Git.
+ 
+\end_layout
+
+\begin_layout Standard
+First of all, I have learned the pain of making mistakes while working directly
+ in kernel mode.
+ I had to give up on several virtual machines because of some mistakes,
+ and also reinstalled my OS once (because I was overconfident and tried
+ my first module on my machine).
+ 
+\end_layout
+
+\begin_layout Standard
+I have also learned how to extend my Linux distro, enriching it with new
+ useful features.
+ This skill is valuable to me, since I like the idea of customizing my machine
+ in the way I like.
+ I think I will have a good time (painful but good) writing more kernel
+ modules in the future, creating more and more functionalities for my personal
+ interest.
+\end_layout
+
+\begin_layout Standard
+Finally, I have learned more about the OS internal mechanism, especially
+ character special files.
+ I had heard of special files for years, so it was nice to learn how this
+ mechanism that I used quite a few times works under the hood.
+\end_layout
+
+\begin_layout Subsection
+Existing knowledge
+\end_layout
+
+\begin_layout Standard
+What courses you have followed (not only AOS) did help you in doing this
+ project and why? Do you have any suggestions on improving the AOS course
+ with topics that would have made it easier for you?
+\end_layout
+
+\begin_layout Standard
+Of course, every course in which I had to write C code was useful for this
+ project (Fondamenti d'Informatica, Algoritmi e Principi dell'Informatica...).
+ The ACSO course was also quite helpful because it had already provided
+ the notion of kernel module and even few toy examples to write one.
+ However , of course most of the concepts that I had to reuse were from
+ the AOS course.
+ I don't think you should add further topics for this project's development.
+\end_layout
+
+\begin_layout Subsection
+Problems encountered
+\end_layout
+
+\begin_layout Standard
+What were the most important problems and issues you encountered? Did you
+ ever encountered them before?
+\end_layout
+
+\begin_layout Itemize
+At first I had some issues with character device drivers.
+ I did not immediately understand how to register ones, overall the data
+ structures required to create a file and the file_operations functions
+ sounded a bit messy to me, but after some researches and trial-and-error
+ I succesfully figured it out.
+\end_layout
+
+\begin_layout Itemize
+Mistakes.
+ A mistake in user space results in a segmentation fault et similia.
+ A mistake in kernel space...
+ some were not that disruptive, and only resulted in scary error alerts,
+ but I had to setup a couple virtual machines.
+\end_layout
+
+\begin_layout Itemize
+Writing the appropriate read functions for the struct file_operations.
+ At first I did not know that I had to return 0 when the reading operation
+ was complete, or that I had to update the offset.
+ Therefore, whenever I would attempt to read the subscribers list for example,
+ the cat command would keep on reading the same data in an infinite loop.
+\end_layout
+
+\begin_layout Itemize
+Adquate locking.
+ Selecting the most appropriate locking mechanism cause a bit of trouble,
+ becasue I was slightly confused.
+ Also I was unsure about where and when to lock in the code.
+\end_layout
+
+\begin_layout Section
+Honor Pledge
+\end_layout
+
+\begin_layout Standard
+(
+\series bold
+This part cannot be modified and it is mandatory to sign it
+\series default
+)
+\end_layout
+
+\begin_layout Standard
+I/We pledge that this work was fully and wholly completed within the criteria
+ established for academic integrity by Politecnico di Milano (Code of Ethics
+ and Conduct) and represents my/our original production, unless otherwise
+ cited.
+\end_layout
+
+\begin_layout Standard
+I/We also understand that this project, if successfully graded, will fulfill
+ part B requirement of the Advanced Operating System course and that it
+ will be considered valid up until the AOS exam of Sept.
+ 2022.
+\end_layout
+
+\begin_layout Standard
+\align right
+Davide Li Calsi
+\end_layout
+
+\end_body
+\end_document
