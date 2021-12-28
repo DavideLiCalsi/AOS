@@ -11,6 +11,8 @@
 #include <linux/list.h>
 #include <linux/rwlock.h>
 #include <linux/rwlock_types.h>
+#include <linux/spinlock.h>
+#include <linux/spinlock_types.h>
 
 #include <asm/uaccess.h>
 
@@ -79,8 +81,8 @@ struct topic_subscribe{
 
     //Locks
     rwlock_t subscribe_lock;
-    rwlock_t signal_nr_lock;
-    rwlock_t endpoint_lock;
+    spinlock_t signal_nr_lock;
+    spinlock_t endpoint_lock;
 };
 
 static struct class* cl;
@@ -249,11 +251,11 @@ void reset_string(char* topic, int len){
  void init_locks(struct topic_subscribe* new_topic_subscribe){
 
      new_topic_subscribe->subscribe_lock =  __RW_LOCK_UNLOCKED(new_topic_subscribe->subscribe_lock);
-     new_topic_subscribe->signal_nr_lock =  __RW_LOCK_UNLOCKED(new_topic_subscribe->signal_nr_lock);
-     new_topic_subscribe->endpoint_lock =  __RW_LOCK_UNLOCKED(new_topic_subscribe->endpoint_lock);
+     new_topic_subscribe->signal_nr_lock =  __SPIN_LOCK_UNLOCKED(new_topic_subscribe->signal_nr_lock);
+     new_topic_subscribe->endpoint_lock =  __SPIN_LOCK_UNLOCKED(new_topic_subscribe->endpoint_lock);
  }
 /*##########################################################################################
-#   Functions to pass to struct file_operations to manage the subscribe special file(s)    #
+#   Functions to pass to struct file_operations to manage the SUBSCRIBE special file(s)    #
 ###########################################################################################*/
 
 static int subscribe_open(struct inode * inode, struct file * filp);
@@ -270,6 +272,11 @@ static int subscribe_open(struct inode * inode, struct file * filp){
 	pr_info("Opening subscription file for topic %s\n", this_file);
 
     struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
+
+    if (this_topic_subscribe==NULL){
+        pr_err("Anomaly detected! Topic not found in the system\n");
+		return -EFAULT;
+    }
 
     write_lock(&(this_topic_subscribe->subscribe_lock) );
 	
@@ -355,7 +362,7 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 }
 
 /*##########################################################################################
-#   Functions to pass to struct file_operations to manage the signal_nr special file(s)  #
+#   Functions to pass to struct file_operations to manage the SIGNAL_NR special file(s)  #
 ###########################################################################################*/
 
 static int signal_nr_open(struct inode * inode, struct file * filp);
@@ -365,13 +372,29 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 
 static int signal_nr_open(struct inode * inode, struct file * filp){
 
-	pr_info("Opening signal_nr file\n");
+    //Get the file name of this special file
+	char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
+
+    pr_info("Opening signal_nr file\n");
+
+
+    struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
+
+    if (this_topic_subscribe==NULL){
+        pr_err("Anomaly detected! Topic not found in the system\n");
+		return -EFAULT;
+    }
+
+    spin_lock(&this_topic_subscribe->signal_nr_lock);
+
 	return 0;
 }
 
 static int signal_nr_release(struct inode * inode, struct file * filp){
 
 	pr_info("Releasing signal_nr file\n");
+    spin_unlock(&this_topic_subscribe->signal_nr_lock);
 	return 0;
 }
 
@@ -464,7 +487,7 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 }
 
 /*##########################################################################################
-#   Functions to pass to struct file_operations to manage the subscribers special file(s)  #
+#   Functions to pass to struct file_operations to manage the SUBSCRIBERS special file(s)  #
 ###########################################################################################*/
 
 static int subscribers_open(struct inode * inode, struct file * filp);
@@ -473,12 +496,30 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t size, loff_t * offset);
 
 static int subscribers_open(struct inode * inode, struct file * filp){
+
+     char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
+
+    struct topic_subscribe* temp = NULL;
+
+    temp=search_topic_subscribe(this_file);
+
+	if ( temp == NULL || temp->pid_list == NULL){
+		pr_err("Anomaly detected! Topic not found in the system or list is not initialized\n");
+		return -EFAULT;
+	}
+
     pr_info("Opening subscribers file\n");
+
+    read_lock(&temp->subscribe_lock);
+
     return 0;
 }
 
 static int subscribers_release(struct inode * inode, struct file * filp){
     pr_info("Releasing subscribers file\n");
+    read_unlock(&temp->subscribe_lock);
+
     return 0;
 }
 
@@ -499,8 +540,7 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 	}
 
 
-	if (*offset==0)
-        read_lock(&temp->subscribe_lock);
+
 
 	struct list_head* pids = temp->pid_list;
     struct list_head* cursor;
@@ -531,7 +571,6 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
     }
     else{
 
-        read_unlock(&temp->subscribe_lock);
         return 0;
     }
 }
@@ -543,7 +582,7 @@ static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t 
 
 
 /*##########################################################################################
-#   Functions to pass to struct file_operations to manage the endpoint special file(s)     #
+#   Functions to pass to struct file_operations to manage the ENDPOINT special file(s)     #
 ###########################################################################################*/
 
 static int endpoint_open(struct inode * inode, struct file * filp);
@@ -552,12 +591,32 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
 static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t size, loff_t * offset);
 
 static int endpoint_open(struct inode * inode, struct file * filp){
+
+     char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
+
     pr_info("Opening endpoint file\n");
+
+    struct topic_subscribe* temp = NULL;
+
+    temp=search_topic_subscribe(this_file);
+
+    //If the topic does not exist or there is no subscribers list, signal anomaly
+	if ( temp == NULL ){
+		pr_err("Anomaly detected! Topic not found in the system\n");
+		return -EFAULT;
+	}
+
+	spin_lock(&temp->endpoint_lock);
+
     return 0;
 }
 
 static int endpoint_release(struct inode * inode, struct file * filp){
     pr_info("Releasing endpoint file\n");
+
+    spin_unlock(&temp->endpoint_lock);
+
     return 0;
 }
 
@@ -586,9 +645,6 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
         return 0;
     }
 
-    //Acquire the read lock only if you are starting to read from the file
-    if (*offset == 0)
-        read_lock(&temp->endpoint_lock);
 
     //Perform the reading. to_read stores the number of characters that should be read
     int to_read=MIN(size, MAX(MAX_MESSAGE_LEN - *offset,0) );
@@ -602,8 +658,6 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
     }
     else{
 
-        //If you have finished, unlock and return
-        read_unlock(&temp->endpoint_lock);
         return 0;
     }
 
@@ -629,12 +683,9 @@ static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t siz
 	int to_write = MIN(MAX_MESSAGE_LEN, size);
 
 
-    write_lock(&temp->endpoint_lock);
-
     reset_string(temp->msg, MAX_MESSAGE_LEN);
     long not_copied = copy_from_user(temp->msg, buffer, to_write);
 
-    write_unlock(&temp->endpoint_lock);
 
     signal_subscribers(temp->signal_nr, temp->pid_list);
 
