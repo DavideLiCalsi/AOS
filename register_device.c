@@ -261,7 +261,7 @@ void reset_string(char* topic, int len){
      struct list_head* cursor;
 
      //Free every node in the list of subscribers
-     list_for_each(cursor,pid_list){
+     list_for_each(cursor,pids){
 
         struct pid_node* sub_process = list_entry(cursor,struct pid_node,list);
         kfree(sub_process);
@@ -743,8 +743,11 @@ static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t siz
     reset_string(temp->msg, MAX_MESSAGE_LEN);
     long not_copied = copy_from_user(temp->msg, buffer, to_write);
 
+    read_lock(&temp->subscribe_lock);
 
     signal_subscribers(temp->signal_nr, temp->pid_list);
+
+    read_unlock(&temp->subscribe_lock);
 
 
     return size;
@@ -884,21 +887,18 @@ struct file_operations newtopic_fo = {
 
 static int Major;
 static char topic[MAX_TOPIC_NAME_LEN];
-static int open = 0;
+DEFINE_SPINLOCK(newtopic_lock);
 
 static int newtopic_device_open(struct inode * inode, struct file * filp){
 
-  if (open)
-    return -EBUSY;
-
-  ++open;
+  spin_lock(&newtopic_lock);
   printk(KERN_INFO "Special file %s opened\n", NEWTOPIC_NAME);
   return 0;//OPEN_SUCCESS;
 }
 
 static int newtopic_device_release(struct inode * inode, struct file * filp){
   printk(KERN_INFO "Special file %s released\n", NEWTOPIC_NAME);
-  --open;
+  spin_unlock(&newtopic_lock);
   return 0;//CLOSE_SUCCESS;
 }
 
