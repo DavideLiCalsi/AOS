@@ -392,9 +392,21 @@ static int signal_nr_open(struct inode * inode, struct file * filp){
 }
 
 static int signal_nr_release(struct inode * inode, struct file * filp){
+    //Get the file name of this special file
+	char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
 	pr_info("Releasing signal_nr file\n");
+
+    struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
+
+    if (this_topic_subscribe==NULL){
+        pr_err("Anomaly detected! Topic not found in the system\n");
+		return -EFAULT;
+    }
+
     spin_unlock(&this_topic_subscribe->signal_nr_lock);
+
 	return 0;
 }
 
@@ -465,7 +477,6 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	char signal_as_string[5];
     int signal_nr;
 
-    write_lock(&temp->signal_nr_lock);
 	
 	not_copied = copy_from_user(signal_as_string, buffer, 1);
     signal_as_string[1]='\0';
@@ -481,7 +492,6 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
     else
         pr_err("Invalid signal number. Overwriting denied. \n");
 
-    write_unlock(&temp->signal_nr_lock);
 	
 	return size;
 }
@@ -504,8 +514,8 @@ static int subscribers_open(struct inode * inode, struct file * filp){
 
     temp=search_topic_subscribe(this_file);
 
-	if ( temp == NULL || temp->pid_list == NULL){
-		pr_err("Anomaly detected! Topic not found in the system or list is not initialized\n");
+	if ( temp == NULL ){
+		pr_err("Anomaly detected! Topic not found in the system\n");
 		return -EFAULT;
 	}
 
@@ -517,7 +527,21 @@ static int subscribers_open(struct inode * inode, struct file * filp){
 }
 
 static int subscribers_release(struct inode * inode, struct file * filp){
+
+    char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
+
+    struct topic_subscribe* temp = NULL;
+
+    temp=search_topic_subscribe(this_file);
+
+	if ( temp == NULL || temp->pid_list == NULL){
+		pr_err("Anomaly detected! Topic not found in the system\n");
+		return -EFAULT;
+	}
+
     pr_info("Releasing subscribers file\n");
+
     read_unlock(&temp->subscribe_lock);
 
     return 0;
@@ -613,7 +637,20 @@ static int endpoint_open(struct inode * inode, struct file * filp){
 }
 
 static int endpoint_release(struct inode * inode, struct file * filp){
+    char this_file[50];
+	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
+
     pr_info("Releasing endpoint file\n");
+
+    struct topic_subscribe* temp = NULL;
+
+    temp=search_topic_subscribe(this_file);
+
+    //If the topic does not exist or there is no subscribers list, signal anomaly
+	if ( temp == NULL ){
+		pr_err("Anomaly detected! Topic not found in the system\n");
+		return -EFAULT;
+	}
 
     spin_unlock(&temp->endpoint_lock);
 
