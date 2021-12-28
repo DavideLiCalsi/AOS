@@ -1,4 +1,4 @@
-obj-m = register_device.o 
+obj-m = ps_ipc.o 
 
 
 all:
