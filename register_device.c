@@ -433,8 +433,6 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	//sprintf(signal_as_string,"%d", signal_code);
     signal_as_string[0]=(char) signal_code;
 
-    if (*offset == 0)
-        read_lock(&temp->signal_nr_lock);
 
     if ( *offset != 1){
 	
@@ -449,7 +447,6 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
         return 1;
     }
     else{
-        read_unlock(&temp->signal_nr_lock);
         return 0;
     }
 }
