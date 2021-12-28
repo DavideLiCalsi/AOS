@@ -254,6 +254,29 @@ void reset_string(char* topic, int len){
      new_topic_subscribe->signal_nr_lock =  __SPIN_LOCK_UNLOCKED(new_topic_subscribe->signal_nr_lock);
      new_topic_subscribe->endpoint_lock =  __SPIN_LOCK_UNLOCKED(new_topic_subscribe->endpoint_lock);
  }
+
+ void free_memory(struct topic_subscribe* to_free){
+
+     struct list_head* pids = to_free->pid_list;
+     struct list_head* cursor;
+
+     //Free every node in the list of subscribers
+     list_for_each(cursor,pid_list){
+
+        struct pid_node* sub_process = list_entry(cursor,struct pid_node,list);
+        kfree(sub_process);
+
+    }
+
+    //Free the list_head itself
+    kfree(pids);
+
+    //Free the topic's name
+    kfree(to_free->name);
+
+    //Free the struct topic_subscribe
+    kfree(to_free);
+ }
 /*##########################################################################################
 #   Functions to pass to struct file_operations to manage the SUBSCRIBE special file(s)    #
 ###########################################################################################*/
@@ -985,6 +1008,12 @@ void cleanup_module(void){
     cdev_del(&subscribe_data[j]->signal_nr_cdev);
     cdev_del(&subscribe_data[j]->subscribers_cdev);
     cdev_del(&subscribe_data[j]->endpoint_cdev);
+  }
+
+  //Free all allocated memory
+  pr_info("Freeing all allocated memory\n");
+  for(j=0; j<topics_count;++j){
+      free_memory(subscribe_data[j]);
   }
   
   printk(KERN_INFO "Module succesfully removed\n");
