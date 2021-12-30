@@ -20,14 +20,14 @@ to the struct file_operations for the subscribe character device drive.
 
 How to use it:
 
--write any string to /dev/newtopic in order to create a topic with that name
--the module will create a /dev/topics/<topic_name> folder
--write any string to /dev/topics/<topic_name>/subscribe to subscribe to a topic
--you can read the subscribers' list from /dev/topics/<topic_name>/subscribers
--write an int to /dev/topics/<topic_name>/signal_nr to select which signal is sent to subscribers
--you can check which signal is sent by reading the aforementioned file
--write to /dev/topic/<topic_name>/endpoint to overwrite the message for that topic
--the module will alert the subscribers by sending them the desired signal
--you can read the last message written for a topic by reading /dev/topics/<topic_name>/endpoint
+1) write any string to /dev/newtopic in order to create a topic with that name
+2) the module will create a /dev/topics/<topic_name> folder
+3) write any string to /dev/topics/<topic_name>/subscribe to subscribe to a topic
+4) you can read the subscribers' list from /dev/topics/<topic_name>/subscribers
+5) write an int to /dev/topics/<topic_name>/signal_nr to select which signal is sent to subscribers
+6) you can check which signal is sent by reading the aforementioned file
+7) write to /dev/topic/<topic_name>/endpoint to overwrite the message for that topic
+8) the module will alert the subscribers by sending them the desired signal
+9) you can read the last message written for a topic by reading /dev/topics/<topic_name>/endpoint
 
 
