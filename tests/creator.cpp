@@ -3,6 +3,16 @@
 #include <string.h>
 #include <vector>
 
+using std::ifstream;
+using std::ofstream;
+
+using std::vector;
+using std::string;
+
+using std::cin;
+using std::cout;
+using std::endl;
+
 void read_topics(vector<string> &topics){
 
     ifstream topic_file(TOPIC_PATH);
