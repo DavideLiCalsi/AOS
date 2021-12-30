@@ -30,4 +30,8 @@ How to use it:
 8) the module will alert the subscribers by sending them the desired signal
 9) you can read the last message written for a topic by reading /dev/topics/<topic_name>/endpoint
 
+NOTE: right now only processes that subscribed to a topic can read its content
+If you wish to disable this feature, search the "DELETE FROM HERE TO ALLOW EVEN NON-SUBSCRIBED PROCESSES TO READ"
+comment and delete 3 lines of code afterwards to fix this.
+
 

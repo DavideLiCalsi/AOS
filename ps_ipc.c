@@ -721,11 +721,12 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
 	struct list_head* pids = temp->pid_list;
 
     //If the reading process is not a suscriber to this topic, stop
+    //DELETE FROM HERE TO ALLOW EVEN NON-SUBSCRIBED PROCESSES TO READ
     if (find_pid(pids, current->pid) == -1){
         pr_err("Process %d is not subscribed to %s\n", current->pid, this_file);
         return 0;
     }
-
+    //STOP DELETION
 
     //Perform the reading. to_read stores the number of characters that should be read
     int to_read=MIN(size, MAX(MAX_MESSAGE_LEN - *offset,0) );
