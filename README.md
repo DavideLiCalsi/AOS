@@ -30,6 +30,9 @@ How to use it:
 8) the module will alert the subscribers by sending them the desired signal
 9) you can read the last message written for a topic by reading /dev/topics/<topic_name>/endpoint
 
+In the AOS folder: make to compile, resulting in the ps_ipc.ko file
+In the tests folder: make test to copile test programs. After this step, run creator to create some topics, subscriber to subscribe
+
 NOTE: right now only processes that subscribed to a topic can read its content
 If you wish to disable this feature, search the "DELETE FROM HERE TO ALLOW EVEN NON-SUBSCRIBED PROCESSES TO READ"
 comment and delete 3 lines of code afterwards to fix this.
