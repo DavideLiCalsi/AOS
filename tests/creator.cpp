@@ -3,6 +3,8 @@
 #include <string.h>
 #include <vector>
 
+#define TOPIC_PATH "topics.txt"
+
 using std::ifstream;
 using std::ofstream;
 
@@ -67,9 +69,9 @@ int main(){
     }
 
     //Publish some content
-    for (int z=0; j<topics.size(); ++j){
+    for (int z=0; z<topics.size(); ++z){
 
-        write_to_topic(topics.at(j));
+        write_to_topic(topics.at(z));
     }
 
     return 0;
