@@ -1,1 +1,0 @@
-cmd_/media/shared/AOS/register_device.ko := ld -r -m elf_x86_64 --build-id=sha1  -T scripts/module.lds -o /media/shared/AOS/register_device.ko /media/shared/AOS/register_device.o /media/shared/AOS/register_device.mod.o;  true
