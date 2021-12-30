@@ -52,6 +52,18 @@ void overwrite_signal(string topic){
     signal_file.close();
 }
 
+void thread_sub_and_sig(string topic){
+
+    cout << "Subscribing to " << topic << endl;
+
+    subscribe(topic);
+
+    cout << "Changin signal of " << topic << endl;
+    overwrite_signal(topic);
+
+    cout << "Thread for " << topic << endl;
+}
+
 int main(){
 
     vector<string> topics;
@@ -63,11 +75,20 @@ int main(){
         cout << *i << " " << endl;
     }
 
+    //Sequential testing, no multithreading
     for (int j=0; j<topics.size(); ++j){
 
         subscribe(topics.at(j));
         overwrite_signal(topics.at(j));
     }
+
+    //Let's test a bit in the case of concurrency
+
+    thread t1 = thread(thread_sub_and_sig, topics.at(0));
+    thread t2 = thread(thread_sub_and_sig, topics.at(1));
+
+    t1.join();
+    t2.join();
 
     return 0;
 
