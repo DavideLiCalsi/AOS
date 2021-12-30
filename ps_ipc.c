@@ -30,6 +30,10 @@
 
 MODULE_LICENSE("GPL");
 
+/*##################################################
+# 1)      Utility structs to ease development        #
+###################################################*/
+
 
 /*Utility struct to implement a list of integers. It will store
  the PIDs of the processes that subscribe to a topic*/
@@ -57,9 +61,6 @@ struct topic_subscribe{
 	dev_t endpoint_dev;
 	struct cdev endpoint_cdev;
 	
-    //Index of this topic
-	int index;
-	int open_count;
 
     //Current signal number
 	int signal_nr;
@@ -86,6 +87,8 @@ struct topic_subscribe{
 };
 
 static struct class* cl;
+
+
 static dev_t newtopic_dev;
 static struct cdev newtopic_cdev;
 
@@ -94,7 +97,7 @@ static struct topic_subscribe* subscribe_data[MAX_TOPICS];
 static int topics_count = 0;
 
 /*##################################################
-#       Utility functions to ease development      #
+# 2)      Utility functions to ease development    #
 ###################################################*/
 
 /*Search a topic by name*/
@@ -278,7 +281,7 @@ void reset_string(char* topic, int len){
     kfree(to_free);
  }
 /*##########################################################################################
-#   Functions to pass to struct file_operations to manage the SUBSCRIBE special file(s)    #
+# 3)  Functions to pass to struct file_operations to manage the SUBSCRIBE special file(s)  #
 ###########################################################################################*/
 
 static int subscribe_open(struct inode * inode, struct file * filp);
@@ -385,7 +388,7 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
 }
 
 /*##########################################################################################
-#   Functions to pass to struct file_operations to manage the SIGNAL_NR special file(s)  #
+# 4)  Functions to pass to struct file_operations to manage the SIGNAL_NR special file(s)  #
 ###########################################################################################*/
 
 static int signal_nr_open(struct inode * inode, struct file * filp);
@@ -451,9 +454,8 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	
 	int signal_code = temp->signal_nr;
 	
-	//Convert the signal number to string
+	//Convert the signal number to char
 	char signal_as_string[5] = "";
-	//sprintf(signal_as_string,"%d", signal_code);
     signal_as_string[0]=(char) signal_code;
 
 
@@ -463,8 +465,15 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
         int error_count = 0;
 	
         error_count = copy_to_user(buffer, signal_as_string, 1);
+
+        if (error_count != 0){
+            pr_err("Unexpected error during read operation. Abort\n");
+
+            spin_unlock(&temp->signal_nr_lock);
+            return -EFAULT;
+        }
 	
-        pr_info("The signal received for topic %s is %d\n", this_file, signal_code);
+        pr_info("The signal sent to subscribers for topic %s is %d\n", this_file, signal_code);
         *offset =1;
 
         return 1;
@@ -494,11 +503,19 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 
 	
 	long not_copied;
-	char signal_as_string[5];
+	char signal_as_string[2];
     int signal_nr;
 
 	
 	not_copied = copy_from_user(signal_as_string, buffer, 1);
+
+    if (not_copied != 0){
+        pr_err("Unexpected error during write operation. Abort\n");
+        spin_unlock(&temp->signal_nr_lock);
+        return -EFAULT;
+    }
+
+
     signal_as_string[1]='\0';
     signal_nr = (int) signal_as_string[0];
 	
@@ -517,7 +534,7 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 }
 
 /*##########################################################################################
-#   Functions to pass to struct file_operations to manage the SUBSCRIBERS special file(s)  #
+# 5)  Functions to pass to struct file_operations to manage the SUBSCRIBERS special file(s)  #
 ###########################################################################################*/
 
 static int subscribers_open(struct inode * inode, struct file * filp);
@@ -527,7 +544,7 @@ static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t 
 
 static int subscribers_open(struct inode * inode, struct file * filp){
 
-     char this_file[50];
+    char this_file[50];
 	strcpy(this_file, filp->f_path.dentry->d_parent->d_name.name);
 
     struct topic_subscribe* temp = NULL;
@@ -609,6 +626,13 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
         long not_copied;
 
         not_copied = copy_to_user(buffer, subscribers, sizeof(int)*chars_to_read );
+
+        if (not_copied != 0){
+            pr_err("Unexpected error during read operation. Abort\n");
+            read_unlock(&temp->subscribe_lock);
+            return -EFAULT;
+        }
+
         *offset +=chars_to_read;
 
         return sizeof(int)*chars_to_read;
@@ -626,7 +650,7 @@ static ssize_t subscribers_write(struct file * filp, const char* buffer, size_t 
 
 
 /*##########################################################################################
-#   Functions to pass to struct file_operations to manage the ENDPOINT special file(s)     #
+#  6) Functions to pass to struct file_operations to manage the ENDPOINT special file(s)   #
 ###########################################################################################*/
 
 static int endpoint_open(struct inode * inode, struct file * filp);
@@ -710,6 +734,13 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
 
         //Keep on reading if you have not finished
         long not_copied=copy_to_user(buffer,temp->msg, to_read);
+
+        if (not_copied != 0){
+            pr_err("Unexpected error during read operation. Abort\n");
+            spin_unlock(&temp->endpoint_lock);
+            return -EFAULT;
+        }
+
         *offset += to_read;
         return to_read;
     }
@@ -743,6 +774,12 @@ static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t siz
     reset_string(temp->msg, MAX_MESSAGE_LEN);
     long not_copied = copy_from_user(temp->msg, buffer, to_write);
 
+    if (not_copied != 0){
+            pr_err("Unexpected error during write operation. Abort\n");
+            spin_unlock(&temp->endpoint_lock);
+            return -EFAULT;
+        }
+
     read_lock(&temp->subscribe_lock);
 
     signal_subscribers(temp->signal_nr, temp->pid_list);
@@ -755,7 +792,7 @@ static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t siz
 
 
 /*##################################################
-#       Function that registers a new topic        #
+# 7)      Function that registers a new topic        #
 ###################################################*/
 
 /*Adds a new topic with name topic_name.
@@ -773,8 +810,6 @@ int add_new_topic(char* topic_name){
 		
 	struct topic_subscribe* new_topic_subscribe;
 	new_topic_subscribe = (struct topic_subscribe*) kmalloc(sizeof(struct topic_subscribe), GFP_KERNEL);
-	new_topic_subscribe->index=topics_count;
-	new_topic_subscribe->open_count=0;
 	new_topic_subscribe->signal_nr=-1; //Default, no signal
 	new_topic_subscribe->name = (char *) kmalloc(sizeof(char)*30, GFP_KERNEL);
 	strcpy(new_topic_subscribe->name, topic_name);
@@ -843,6 +878,7 @@ int add_new_topic(char* topic_name){
   	pr_info("%s: Obtained Major = %d Minor = %d \n",topic_subscribe_path, MAJOR(new_topic_subscribe->subscribe_dev), MINOR(new_topic_subscribe->subscribe_dev));
   	pr_info("%s Obtained Major = %d Minor = %d \n",topic_signal_path, MAJOR(new_topic_subscribe->signal_nr_dev), MINOR(new_topic_subscribe->signal_nr_dev));
     pr_info("%s: Obtained Major = %d Minor = %d \n",topic_subscribers_path, MAJOR(new_topic_subscribe->subscribers_dev), MINOR(new_topic_subscribe->subscribers_dev));
+    pr_info("%s: Obtained Major = %d Minor = %d \n",topic_endpoint_path, MAJOR(new_topic_subscribe->endpoint_dev), MINOR(new_topic_subscribe->endpoint_dev));
   
   	//Initialize the cdev structure
 
@@ -871,7 +907,7 @@ int add_new_topic(char* topic_name){
 
 
 /*##################################################################################################
-#   Functions to pass to struct file_operations newtopic_fo to register the special file newtopic  #
+# 8) Functions to pass to struct file_operations newtopic_fo to register the special file newtopic #
 ##################################################################################################*/
 static int newtopic_device_open(struct inode * inode, struct file * filp);
 static int newtopic_device_release(struct inode * inode, struct file * filp);
@@ -935,7 +971,7 @@ static ssize_t newtopic_device_write(struct file * filp, const char* buffer, siz
 }
 
 /*######################################
-#   Module initialization and cleanup  #
+# 9)Module initialization and cleanup  #
 ######################################*/
 
 
@@ -976,8 +1012,6 @@ int init_module(void){
   }
   else
   	printk(KERN_INFO "Succesfully created special file %s\n", NEWTOPIC_NAME);
-
- // Major = register_chrdev(DEFAULT_MAJOR, NEWTOPIC_NAME, &newtopic_fo);
 
   printk(KERN_INFO "Special file newtopic was assigned Major %d", Major);
   return 0;
