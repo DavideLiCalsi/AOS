@@ -99,7 +99,7 @@ int main(){
     for (int j=0; j<topics.size(); ++j){
 
         subscribe(topics.at(j));
-        overwrite_signal(topics.at(j));
+        overwrite_signal(topics.at(j), "\x0b");
     }
 
     //Let's test a bit in the case of concurrency
