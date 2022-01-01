@@ -61,12 +61,16 @@ void overwrite_signal(string topic, string sig){
 void thread_sub_and_sig(string topic, string sig_to_set){
 
     signal(0xb, signalHandler);
+    signal(0xa, signalHandler);
+    signal(0x21, signalHandler);
+    signal(0x22, signalHandler);
+    signal(0x23, signalHandler);
 
     cout << "Subscribing to " << topic << endl;
 
     subscribe(topic);
 
-    cout << "Changin signal of " << topic << "to " << sig_to_set << endl;
+    cout << "Changin signal of " << topic << "to  " << sig_to_set << endl;
     overwrite_signal(topic, sig_to_set);
 
     cout << "Thread for " << topic << endl;
