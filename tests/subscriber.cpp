@@ -3,6 +3,8 @@
 #include <fstream>
 #include <string.h>
 #include <vector>
+#include <csignal>
+#include <unistd.h>
 
 #define TOPIC_PATH "topics.txt"
 
@@ -16,6 +18,10 @@ using std::thread;
 using std::cin;
 using std::cout;
 using std::endl;
+
+void signalHandler(int signum){
+    cout << "Received signal " << signum << endl;
+}
 
 void read_topics(vector<string> &topics){
 
@@ -47,12 +53,14 @@ void overwrite_signal(string topic){
 
     ofstream signal_file(path);
 
-    signal_file << 21;
+    signal_file << "\x0b";
 
     signal_file.close();
 }
 
 void thread_sub_and_sig(string topic){
+
+    signal(0xb, signalHandler);
 
     cout << "Subscribing to " << topic << endl;
 
@@ -62,6 +70,18 @@ void thread_sub_and_sig(string topic){
     overwrite_signal(topic);
 
     cout << "Thread for " << topic << endl;
+
+    //Wait for an incoming signal
+    int i=0;
+    while(1){
+        sleep(1);
+        i++;
+
+        if(i==100){
+            cout << "Closing thread for topic "<<topic << endl;
+            return;
+        }
+    }
 }
 
 int main(){
