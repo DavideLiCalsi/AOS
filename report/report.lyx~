@@ -545,8 +545,8 @@ Of course, every course in which I had to write C code was useful for this
  project (Fondamenti d'Informatica, Algoritmi e Principi dell'Informatica...).
  The ACSO course was also quite helpful because it had already provided
  the notion of kernel module and even few toy examples to write one.
- However, of course most of the concepts that I had to reuse were from the
- AOS course.
+ However , of course most of the concepts that I had to reuse were from
+ the AOS course.
  I don't think you should add further topics for this project's development.
 \end_layout
 
