@@ -47,18 +47,18 @@ void subscribe(string topic){
     subscribe_file.close();
 }
 
-void overwrite_signal(string topic){
+void overwrite_signal(string topic, string sig){
 
     string path = "/dev/topics/" + topic + "/signal_nr";
 
     ofstream signal_file(path);
 
-    signal_file << "\x0b";
+    signal_file << sig;
 
     signal_file.close();
 }
 
-void thread_sub_and_sig(string topic){
+void thread_sub_and_sig(string topic, string sig_to_set){
 
     signal(0xb, signalHandler);
 
@@ -66,8 +66,8 @@ void thread_sub_and_sig(string topic){
 
     subscribe(topic);
 
-    cout << "Changin signal of " << topic << endl;
-    overwrite_signal(topic);
+    cout << "Changin signal of " << topic << "to " << sig_to_set << endl;
+    overwrite_signal(topic, sig_to_set);
 
     cout << "Thread for " << topic << endl;
 
@@ -104,11 +104,17 @@ int main(){
 
     //Let's test a bit in the case of concurrency
 
-    thread t1 = thread(thread_sub_and_sig, topics.at(0));
-    thread t2 = thread(thread_sub_and_sig, topics.at(1));
+    thread t1 = thread(thread_sub_and_sig, topics.at(0), "\x0a");
+    thread t2 = thread(thread_sub_and_sig, topics.at(1), "\x0b" );
+    thread t3 = thread(thread_sub_and_sig, topics.at(2), "\x21");
+    thread t4 = thread(thread_sub_and_sig, topics.at(3), "\x22");
+    thread t5 = thread(thread_sub_and_sig, topics.at(4), "\x23");
 
     t1.join();
     t2.join();
+    t3.join();
+    t4.join();
+    t5.join();
 
     return 0;
 
