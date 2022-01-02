@@ -120,7 +120,7 @@ struct topic_subscribe* search_topic_subscribe(char* name){
 void send_signal(int signal_nr, int pid){
 
     struct siginfo info;
-    pr_info("Sending interrupt to task %d\n",pid);
+    pr_info("Requested sending signal %d to task %d\n",signal_nr, pid);
 
     //Sending signal to app
     memset(&info, 0, sizeof(struct siginfo));
@@ -130,7 +130,7 @@ void send_signal(int signal_nr, int pid){
 
     struct task_struct* task = get_pid_task(find_get_pid(pid),PIDTYPE_PID);
     if (task != NULL) {
-        printk(KERN_INFO "Sending signal to app %d\n", pid);
+        printk(KERN_INFO "Sending signal %d to app %d\n",signal_nr, pid);
         if(send_sig(signal_nr, task,1) < 0) {
             printk(KERN_INFO "Unable to send signal\n");
         }
@@ -140,7 +140,7 @@ void send_signal(int signal_nr, int pid){
 void signal_subscribers(int signal_nr, struct list_head* pid_list){
 
     if (signal_nr <= 0){
-        pr_err("Invalid signal code, please specify a valid one\n");
+        pr_err("Invalid signal code %d, please specify a valid one\n", signal_nr);
         return;
     }
 
