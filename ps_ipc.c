@@ -455,8 +455,8 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
 	int signal_code = temp->signal_nr;
 	
 	//Convert the signal number to char
-	char signal_as_string[5] = "";
-    signal_as_string[0]=(char) signal_code;
+	char signal_as_string;
+    signal_as_string=(char) signal_code;
 
 
     if ( *offset != 1){
@@ -464,7 +464,7 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
         //Copy it to buffer
         int error_count = 0;
 	
-        error_count = copy_to_user(buffer, signal_as_string, 1);
+        error_count = copy_to_user(buffer, &signal_as_string, 1);
 
         if (error_count != 0){
             pr_err("Unexpected error during read operation. Abort\n");
@@ -503,7 +503,7 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 
 	
 	long not_copied;
-	char signal_as_string[2];
+	char* signal_as_string;
     int signal_nr;
 
 	
@@ -516,8 +516,7 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
     }
 
 
-    signal_as_string[1]='\0';
-    signal_nr = (int) signal_as_string[0];
+    signal_nr = (int) (*signal_as_string);
 	
 	pr_info("Provided signal code: %d\n", signal_nr);
 	
