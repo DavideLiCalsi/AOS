@@ -101,6 +101,10 @@ static struct topic_subscribe* subscribe_data[MAX_TOPICS];
 
 static int topics_count = 0;
 
+/*This mutex protects the array of topics. It is locked in two occasions:
+ * 1st: at the beginning and end of the search_topic_subscribe function
+ * 2nd: in the add_new_topic, when a new topic is added
+ */
 DEFINE_MUTEX(topic_list_mutex);
 
 /*##################################################
@@ -264,10 +268,6 @@ void reset_string(char* topic, int len){
 
  void init_locks(struct topic_subscribe* new_topic_subscribe){
 
-     //new_topic_subscribe->subscribe_lock =  __RW_LOCK_UNLOCKED(new_topic_subscribe->subscribe_lock);
-     //new_topic_subscribe->signal_nr_lock =  __SPIN_LOCK_UNLOCKED(new_topic_subscribe->signal_nr_lock);
-     //new_topic_subscribe->endpoint_lock =  __SPIN_LOCK_UNLOCKED(new_topic_subscribe->endpoint_lock);
-
      mutex_init(&new_topic_subscribe->subscribe_mutex);
      mutex_init(&new_topic_subscribe->endpoint_mutex);
      mutex_init(&new_topic_subscribe->signal_nr_mutex);
@@ -319,8 +319,6 @@ static int subscribe_open(struct inode * inode, struct file * filp){
 		return -EFAULT;
     }
 
-    //write_lock(&(this_topic_subscribe->subscribe_lock) );
-	
 	return 0;
 }
 
@@ -334,8 +332,6 @@ static int subscribe_release(struct inode * inode, struct file * filp){
 	pr_info("Releasing subscription file for topic %s\n", this_file);
 
     struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
-
-    //write_unlock( &(this_topic_subscribe->subscribe_lock) );
 	
 	return 0;
 }
@@ -429,11 +425,11 @@ static int signal_nr_open(struct inode * inode, struct file * filp){
     struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
 
     if (this_topic_subscribe==NULL){
+
         pr_err("Anomaly detected! Topic not found in the system\n");
 		return -EFAULT;
-    }
 
-    //spin_lock(&this_topic_subscribe->signal_nr_lock);
+    }
 
 	return 0;
 }
@@ -448,11 +444,11 @@ static int signal_nr_release(struct inode * inode, struct file * filp){
     struct topic_subscribe* this_topic_subscribe = search_topic_subscribe( this_file);
 
     if (this_topic_subscribe==NULL){
+
         pr_err("Anomaly detected! Topic not found in the system\n");
 		return -EFAULT;
-    }
 
-    //spin_unlock(&this_topic_subscribe->signal_nr_lock);
+    }
 
 	return 0;
 }
@@ -492,9 +488,9 @@ static ssize_t signal_nr_read(struct file * filp, char* buffer, size_t size, lof
         mutex_unlock(&temp->signal_nr_mutex);
 
         if (error_count != 0){
+
             pr_err("Unexpected error during read operation. Abort\n");
 
-            //spin_unlock(&temp->signal_nr_lock);
             return -EFAULT;
         }
 	
@@ -537,9 +533,10 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 
 
     if (not_copied != 0){
+
         pr_err("Unexpected error during write operation. Abort\n");
-        //spin_unlock(&temp->signal_nr_lock);
         mutex_unlock(&temp->signal_nr_mutex);
+
         return -EFAULT;
     }
 
@@ -550,13 +547,16 @@ static ssize_t signal_nr_write(struct file * filp, const char* buffer, size_t si
 	
 	
     if( signal_nr <= MAX_SIG || signal_nr < 0){
+
         temp->signal_nr = signal_nr;
         pr_info("Signal code succesfully updated!\n");
+
     }
     else
         pr_err("Invalid signal number. Overwriting denied. \n");
 
 	mutex_unlock(&temp->signal_nr_mutex);
+
 	return size;
 }
 
@@ -585,8 +585,6 @@ static int subscribers_open(struct inode * inode, struct file * filp){
 
     pr_info("Opening subscribers file\n");
 
-    //read_lock(&temp->subscribe_lock);
-
     return 0;
 }
 
@@ -605,8 +603,6 @@ static int subscribers_release(struct inode * inode, struct file * filp){
 	}
 
     pr_info("Releasing subscribers file\n");
-
-    //read_unlock(&temp->subscribe_lock);
 
     return 0;
 }
@@ -655,18 +651,21 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
         not_copied = copy_to_user(buffer, subscribers, sizeof(int)*chars_to_read );
 
         if (not_copied != 0){
+
             pr_err("Unexpected error during read operation. Abort\n");
             mutex_unlock(&temp->subscribe_mutex);
-            //read_unlock(&temp->subscribe_lock);
+
             return -EFAULT;
         }
 
         *offset +=chars_to_read;
         mutex_unlock(&temp->subscribe_mutex);
+
         return sizeof(int)*chars_to_read;
     }
     else{
         mutex_unlock(&temp->subscribe_mutex);
+
         return 0;
     }
 }
@@ -699,11 +698,11 @@ static int endpoint_open(struct inode * inode, struct file * filp){
 
     //If the topic does not exist or there is no subscribers list, signal anomaly
 	if ( temp == NULL ){
+
 		pr_err("Anomaly detected! Topic not found in the system\n");
 		return -EFAULT;
-	}
 
-	//spin_lock(&temp->endpoint_lock);
+	}
 
     return 0;
 }
@@ -724,7 +723,6 @@ static int endpoint_release(struct inode * inode, struct file * filp){
 		return -EFAULT;
 	}
 
-    //spin_unlock(&temp->endpoint_lock);
 
     return 0;
 }
@@ -766,14 +764,17 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
         long not_copied=copy_to_user(buffer,temp->msg, to_read);
 
         if (not_copied != 0){
+
             pr_err("Unexpected error during read operation. Abort\n");
-            //spin_unlock(&temp->endpoint_lock);
+
             mutex_unlock(&temp->endpoint_mutex);
+
             return -EFAULT;
         }
 
         *offset += to_read;
         mutex_unlock(&temp->endpoint_mutex);
+
         return to_read;
     }
     else{
@@ -803,22 +804,26 @@ static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t siz
 	int to_write = MIN(MAX_MESSAGE_LEN, size);
 
     mutex_lock(&temp->endpoint_mutex);
+
     reset_string(temp->msg, MAX_MESSAGE_LEN);
     long not_copied = copy_from_user(temp->msg, buffer, to_write);
+
     mutex_unlock(&temp->endpoint_mutex);
 
     if (not_copied != 0){
+
             pr_err("Unexpected error during write operation. Abort\n");
-            //spin_unlock(&temp->endpoint_lock);
             mutex_unlock(&temp->endpoint_mutex);
+
             return -EFAULT;
         }
 
-    //read_lock(&temp->subscribe_lock);
+
     mutex_lock(&temp->subscribe_mutex);
+
     signal_subscribers(temp->signal_nr, temp->pid_list);
+
     mutex_unlock(&temp->subscribe_mutex);
-    //read_unlock(&temp->subscribe_lock);
 
 
     return size;
@@ -934,10 +939,12 @@ int add_new_topic(char* topic_name){
     init_locks(new_topic_subscribe);
   	
     mutex_lock(&topic_list_mutex);
+
   	subscribe_data[topics_count]=new_topic_subscribe;
-  	
   	topics_count++;
+
     mutex_unlock(&topic_list_mutex);
+
   	return 0;
 }
 
@@ -964,14 +971,12 @@ DEFINE_MUTEX(newtopic_mutex);
 
 static int newtopic_device_open(struct inode * inode, struct file * filp){
 
-  //spin_lock(&newtopic_lock);
   printk(KERN_INFO "Special file %s opened\n", NEWTOPIC_NAME);
   return 0;//OPEN_SUCCESS;
 }
 
 static int newtopic_device_release(struct inode * inode, struct file * filp){
   printk(KERN_INFO "Special file %s released\n", NEWTOPIC_NAME);
-  //spin_unlock(&newtopic_lock);
   return 0;//CLOSE_SUCCESS;
 }
 

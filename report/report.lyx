@@ -14,9 +14,9 @@
 
 
 
-\author{P. Rossi}
+\author{Davide Li Calsi}
 \date{\today}
-\title{Project name}
+\title{Publish/Subscribe IPC}
 \end_preamble
 \options a4
 \use_default_options false
@@ -102,7 +102,7 @@
 
 \begin_layout Standard
 \begin_inset ERT
-status collapsed
+status open
 
 \begin_layout Plain Layout
 
@@ -263,6 +263,10 @@ For those who choose to work on an open source project, please put here
 identify the subject of the pull request
 \series default
 .
+\begin_inset Newline newline
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -310,12 +314,10 @@ For those who choose to work on an open source project, please put here
 
 \begin_layout Standard
 Those that have chosen to present a paper can exclude this section.
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout Standard
 
-\series bold
-IMPLEMENTATION
 \end_layout
 
 \begin_layout Standard
@@ -405,7 +407,7 @@ Finally, the head of the source file defines some macros that limit some
 \end_layout
 
 \begin_layout Standard
-As for locking, I used two different mechanisms.
+As for locking, I used two different mechanisms at first.
  To regulate concurrent access to the list of subscribers, I used read/write
  spinlocks (
 \begin_inset CommandInset href
@@ -433,6 +435,13 @@ On the other hand, I used regular spinlocks to lock the signal number field
  and the message buffer of each topic.
 \end_layout
 
+\begin_layout Standard
+However, after consulting my supervisor, I modified my approach to locking.
+ Indeed I switched to mutexes in order to avoid that too much time is wasted
+ spinning on spinlocks, as some operations in the module might potentially
+ take too long.
+\end_layout
+
 \begin_layout Section
 Project outcomes
 \end_layout
@@ -453,12 +462,10 @@ URL to your final pull request
 
 \begin_layout Standard
 Those that have chosen to present a paper can include a link to the slides.
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout Standard
 
-\series bold
-My outcome:
 \end_layout
 
 \begin_layout Standard
@@ -532,12 +539,14 @@ Existing knowledge
 What courses you have followed (not only AOS) did help you in doing this
  project and why? Do you have any suggestions on improving the AOS course
  with topics that would have made it easier for you?
+\begin_inset Newline newline
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
 
-\series bold
-My existing knowledge
 \end_layout
 
 \begin_layout Standard

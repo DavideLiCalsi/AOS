@@ -14,9 +14,9 @@
 
 
 
-\author{P. Rossi}
+\author{Davide Li Calsi}
 \date{\today}
-\title{Project name}
+\title{Publish/Subscribe IPC}
 \end_preamble
 \options a4
 \use_default_options false
@@ -102,7 +102,7 @@
 
 \begin_layout Standard
 \begin_inset ERT
-status collapsed
+status open
 
 \begin_layout Plain Layout
 
@@ -263,6 +263,10 @@ For those who choose to work on an open source project, please put here
 identify the subject of the pull request
 \series default
 .
+\begin_inset Newline newline
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -310,12 +314,14 @@ For those who choose to work on an open source project, please put here
 
 \begin_layout Standard
 Those that have chosen to present a paper can exclude this section.
+\begin_inset Newline newline
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
 
-\series bold
-IMPLEMENTATION
 \end_layout
 
 \begin_layout Standard
@@ -405,7 +411,7 @@ Finally, the head of the source file defines some macros that limit some
 \end_layout
 
 \begin_layout Standard
-As for locking, I used two different mechanisms.
+As for locking, I used two different mechanisms at first.
  To regulate concurrent access to the list of subscribers, I used read/write
  spinlocks (
 \begin_inset CommandInset href
@@ -431,6 +437,13 @@ literal "false"
 \begin_layout Standard
 On the other hand, I used regular spinlocks to lock the signal number field
  and the message buffer of each topic.
+\end_layout
+
+\begin_layout Standard
+However, after consulting my supervisor, I modified my approach to locking.
+ Indeed I switched to mutexes in order to avoid that too much time is wasted
+ spinning on spinlocks, as some operations in the module might potentially
+ take too long.
 \end_layout
 
 \begin_layout Section
@@ -545,8 +558,8 @@ Of course, every course in which I had to write C code was useful for this
  project (Fondamenti d'Informatica, Algoritmi e Principi dell'Informatica...).
  The ACSO course was also quite helpful because it had already provided
  the notion of kernel module and even few toy examples to write one.
- However , of course most of the concepts that I had to reuse were from
- the AOS course.
+ However, of course most of the concepts that I had to reuse were from the
+ AOS course.
  I don't think you should add further topics for this project's development.
 \end_layout
 
