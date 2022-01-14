@@ -266,7 +266,7 @@ void reset_string(char* topic, int len){
      //new_topic_subscribe->signal_nr_lock =  __SPIN_LOCK_UNLOCKED(new_topic_subscribe->signal_nr_lock);
      //new_topic_subscribe->endpoint_lock =  __SPIN_LOCK_UNLOCKED(new_topic_subscribe->endpoint_lock);
 
-     mutex_init(&new_topic_subscribe->subcribe_mutex);
+     mutex_init(&new_topic_subscribe->subscribe_mutex);
      mutex_init(&new_topic_subscribe->subcribers_mutex);
      mutex_init(&new_topic_subscribe->signal_nr_mutex);
  }
@@ -633,7 +633,7 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
     int subscribers[MAX_SUBSCRIBERS];
     int i=0;
 
-    mutex_lock(&temp->subscribers_mutex);
+    mutex_lock(&temp->subscribe_mutex);
     if (*offset ==0) {
         list_for_each(cursor,pids){
 
@@ -654,17 +654,17 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 
         if (not_copied != 0){
             pr_err("Unexpected error during read operation. Abort\n");
-            mutex_unlock(&temp->subscribers_mutex);
+            mutex_unlock(&temp->subscribe_mutex);
             //read_unlock(&temp->subscribe_lock);
             return -EFAULT;
         }
 
         *offset +=chars_to_read;
-        mutex_unlock(&temp->subscribers_mutex);
+        mutex_unlock(&temp->subscribe_mutex);
         return sizeof(int)*chars_to_read;
     }
     else{
-        mutex_unlock(&temp->subscribers_mutex);
+        mutex_unlock(&temp->subscribe_mutex);
         return 0;
     }
 }
