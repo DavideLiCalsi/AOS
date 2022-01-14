@@ -101,6 +101,7 @@ static struct topic_subscribe* subscribe_data[MAX_TOPICS];
 
 static int topics_count = 0;
 
+DEFINE_MUTEX(topic_list_mutex);
 
 /*##################################################
 # 2)      Utility functions to ease development    #
@@ -111,11 +112,13 @@ struct topic_subscribe* search_topic_subscribe(char* name){
 
     int i;
 
+    mutex_lock(&topic_list_mutex);
     for(i=0; i<topics_count; ++i){
 
         if (!strcmp(name, subscribe_data[i]->name) )
             return subscribe_data[i];
     }
+    mutex_unlock(&topic_list_mutex);
 
     return NULL;
 }
@@ -927,9 +930,11 @@ int add_new_topic(char* topic_name){
     //Initialize locks
     init_locks(new_topic_subscribe);
   	
+    mutex_lock(&topic_list_mutex);
   	subscribe_data[topics_count]=new_topic_subscribe;
   	
   	topics_count++;
+    mutex_unlock(&topic_list_mutex);
   	return 0;
 }
 
