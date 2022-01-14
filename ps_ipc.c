@@ -267,7 +267,7 @@ void reset_string(char* topic, int len){
      //new_topic_subscribe->endpoint_lock =  __SPIN_LOCK_UNLOCKED(new_topic_subscribe->endpoint_lock);
 
      mutex_init(&new_topic_subscribe->subscribe_mutex);
-     mutex_init(&new_topic_subscribe->subcribers_mutex);
+     mutex_init(&new_topic_subscribe->endpoint_mutex);
      mutex_init(&new_topic_subscribe->signal_nr_mutex);
  }
 
@@ -812,9 +812,9 @@ static ssize_t endpoint_write(struct file * filp, const char* buffer, size_t siz
         }
 
     //read_lock(&temp->subscribe_lock);
-    mutex_lock(&temp->suscribers_mutex);
+    mutex_lock(&temp->subscribe_mutex);
     signal_subscribers(temp->signal_nr, temp->pid_list);
-    mutex_unlock(&temp->suscribers_mutex);
+    mutex_unlock(&temp->subscribe_mutex);
     //read_unlock(&temp->subscribe_lock);
 
 
