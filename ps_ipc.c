@@ -382,6 +382,7 @@ static ssize_t subscribe_write(struct file * filp, const char* buffer, size_t si
     }
 
     mutex_lock(&this_topic_subscribe->subscribe_mutex);
+
     struct list_head* this_list = this_topic_subscribe->pid_list;
 
     //Abort if the process is already subscribed to this topic
@@ -432,7 +433,7 @@ static int signal_nr_open(struct inode * inode, struct file * filp){
 		return -EFAULT;
     }
 
-    spin_lock(&this_topic_subscribe->signal_nr_lock);
+    //spin_lock(&this_topic_subscribe->signal_nr_lock);
 
 	return 0;
 }
@@ -451,7 +452,7 @@ static int signal_nr_release(struct inode * inode, struct file * filp){
 		return -EFAULT;
     }
 
-    spin_unlock(&this_topic_subscribe->signal_nr_lock);
+    //spin_unlock(&this_topic_subscribe->signal_nr_lock);
 
 	return 0;
 }
@@ -627,8 +628,6 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
 	}
 
 
-
-
 	struct list_head* pids = temp->pid_list;
     struct list_head* cursor;
 
@@ -636,6 +635,7 @@ static ssize_t subscribers_read(struct file * filp, char* buffer, size_t size, l
     int i=0;
 
     mutex_lock(&temp->subscribe_mutex);
+
     if (*offset ==0) {
         list_for_each(cursor,pids){
 
@@ -773,6 +773,7 @@ static ssize_t endpoint_read(struct file * filp, char* buffer, size_t size, loff
         }
 
         *offset += to_read;
+        mutex_unlock(&temp->endpoint_mutex);
         return to_read;
     }
     else{
