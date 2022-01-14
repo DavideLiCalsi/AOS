@@ -115,8 +115,10 @@ struct topic_subscribe* search_topic_subscribe(char* name){
     mutex_lock(&topic_list_mutex);
     for(i=0; i<topics_count; ++i){
 
-        if (!strcmp(name, subscribe_data[i]->name) )
+        if (!strcmp(name, subscribe_data[i]->name) ){
+            mutex_unlock(&topic_list_mutex);
             return subscribe_data[i];
+        }
     }
     mutex_unlock(&topic_list_mutex);
 
